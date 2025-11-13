@@ -1,0 +1,117 @@
+from rest_framework import generics, permissions
+from rest_framework.response import Response
+from rest_framework.decorators import action
+
+from dataroom.models import Document, DocumentVersion, Folder
+from dataroom.serializers import (
+    DocumentSerializer,
+    DocumentCreateSerializer,
+    DocumentVersionSerializer,
+    VersionCompareSerializer,
+)
+
+
+class DocumentListCreateView(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return DocumentCreateSerializer
+        return DocumentSerializer
+
+    def get_queryset(self):
+        qs = Document.objects.all()
+        company_id = self.request.query_params.get("company_id")
+        folder_id = self.request.query_params.get("folder_id")
+        search = self.request.query_params.get("search")
+        if company_id:
+            qs = qs.filter(company_id=company_id)
+        if folder_id:
+            qs = qs.filter(folder_id=folder_id)
+        if search:
+            qs = qs.filter(name__icontains=search)
+        return qs.select_related("folder")
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+
+class DocumentRetrieveUpdateView(generics.RetrieveUpdateAPIView):
+    queryset = Document.objects.all().select_related("folder")
+    serializer_class = DocumentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class FolderDocumentsView(generics.ListAPIView):
+    serializer_class = DocumentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        folder_id = self.kwargs["folder_id"]
+        return Document.objects.filter(folder_id=folder_id).select_related("folder")
+
+
+class DocumentVersionListCreateView(generics.ListCreateAPIView):
+    serializer_class = DocumentVersionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        document_id = self.request.query_params.get("document_id")
+        return DocumentVersion.objects.filter(document_id=document_id)
+
+    def perform_create(self, serializer):
+        document_id = self.request.data.get("document")
+        if not document_id:
+            return super().perform_create(serializer)
+        # next version number
+        try:
+            last = (
+                DocumentVersion.objects.filter(document_id=document_id)
+                .order_by("-version_no")
+                .first()
+            )
+            next_no = (last.version_no + 1) if last else 1
+        except Exception:
+            next_no = 1
+        instance = serializer.save(
+            version_no=next_no,
+            created_by=self.request.user,
+            updated_by=self.request.user,
+        )
+        # update document latest file/size
+        doc = instance.document
+        doc.file = instance.file
+        doc.size_bytes = instance.size_bytes
+        doc.save(update_fields=["file", "size_bytes", "updated_at", "updated_by"])
+
+
+class VersionCompareView(generics.GenericAPIView):
+    serializer_class = VersionCompareSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        old_id = serializer.validated_data["old_version_id"]
+        new_id = serializer.validated_data["new_version_id"]
+        try:
+            old_v = DocumentVersion.objects.get(id=old_id)
+            new_v = DocumentVersion.objects.get(id=new_id)
+        except DocumentVersion.DoesNotExist:
+            return Response({"detail": "Version not found"}, status=404)
+        # Basic metadata compare; real diffing for PDFs/docs is non-trivial.
+        result = {
+            "document": str(old_v.document_id),
+            "old": {
+                "version_no": old_v.version_no,
+                "size_bytes": old_v.size_bytes,
+                "created_at": old_v.created_at,
+            },
+            "new": {
+                "version_no": new_v.version_no,
+                "size_bytes": new_v.size_bytes,
+                "created_at": new_v.created_at,
+            },
+            "changed_size_bytes": (new_v.size_bytes or 0) - (old_v.size_bytes or 0),
+        }
+        return Response(result)
