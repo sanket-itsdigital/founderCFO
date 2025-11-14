@@ -6,19 +6,15 @@ from backend.models import BaseModel
 
 
 class Folder(BaseModel):
-    company = models.ForeignKey(
-        "accounts.Company", on_delete=models.CASCADE, related_name="folders"
-    )
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, unique=True)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = ("company", "name")
         ordering = ["name"]
 
     def __str__(self) -> str:
-        return f"{self.company.name} / {self.name}"
+        return self.name
 
 
 class Document(BaseModel):
@@ -57,6 +53,22 @@ class DocumentVersion(BaseModel):
     class Meta:
         unique_together = ("document", "version_no")
         ordering = ["-created_at"]
+
+
+class FileCategory(BaseModel):
+    folder = models.ForeignKey(
+        Folder, on_delete=models.CASCADE, related_name="categories"
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ("folder", "name")
+        ordering = ["folder__name", "name"]
+
+    def __str__(self) -> str:
+        return f"{self.folder.name} / {self.name}"
 
 
 class Question(BaseModel):
@@ -115,3 +127,31 @@ class AccessLog(BaseModel):
             models.Index(fields=["company", "timestamp"]),
             models.Index(fields=["action"]),
         ]
+
+
+class CompanyFolderSelection(BaseModel):
+    company = models.ForeignKey(
+        "accounts.Company", on_delete=models.CASCADE, related_name="selected_folders"
+    )
+    folder = models.ForeignKey(
+        Folder, on_delete=models.CASCADE, related_name="company_selections"
+    )
+    selected_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = ("company", "folder")
+        ordering = ["-selected_at"]
+
+
+class CompanyCategorySelection(BaseModel):
+    company = models.ForeignKey(
+        "accounts.Company", on_delete=models.CASCADE, related_name="selected_categories"
+    )
+    category = models.ForeignKey(
+        FileCategory, on_delete=models.CASCADE, related_name="company_selections"
+    )
+    selected_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = ("company", "category")
+        ordering = ["-selected_at"]

@@ -1,0 +1,217 @@
+{% extends "partials/adminBase.html" %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Banner</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      body {
+        background-color: #f8f9fa;
+        padding: 20px;
+        margin-left: 80px;
+      }
+      .banner-heading {
+        text-align: left;
+        margin-bottom: 20px;
+        font-weight: bold;
+        font-size: 3rem;
+        color: #0088CC!important ;
+      }
+      .upload-section {
+        margin-bottom: 30px;
+        text-align: left;
+      }
+      .upload-section label {
+        display: block;
+        margin-bottom: 10px;
+      }
+      .upload-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+      }
+      .btn-secondary {
+        background-color: #f0d28c;
+        color: #0088CC!important ;
+      }
+      .table {
+        background-color: #ffffff;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .table th {
+        background-color: #0088CC!important ;
+        color: #ffffff;
+        text-align: center;
+      }
+      .table td {
+        text-align: center;
+        vertical-align: middle;
+        height: 100px; /* Set consistent row height */
+      }
+      .btn-danger {
+        padding: 5px 10px;
+      }
+      img {
+        max-width: 100px;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="banner-heading">Banner</h1>
+      <div class="upload-section">
+        <label for="imageUpload" class="form-label">Upload Image:</label>
+        <div class="upload-container">
+          <input
+            type="file"
+            id="imageUpload"
+            class="form-control"
+            accept="image/*"
+          />
+          <button id="uploadButton" class="btn btn-secondary">Upload</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th scope="col">Serial No.</th>
+              <th scope="col">Image</th>
+              <th scope="col">URL</th>
+              <th scope="col">Action</th>
+            </tr>
+          </thead>
+          <tbody id="imageTable">
+            <!-- Uploaded images will be displayed here -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="text-center mt-4">
+        <button id="submitButton" class="btn btn-secondary">Submit</button>
+      </div>
+    </div>
+
+    <script>
+      const imageTable = document.getElementById("imageTable");
+      const uploadButton = document.getElementById("uploadButton");
+      const imageUpload = document.getElementById("imageUpload");
+      const submitButton = document.getElementById("submitButton");
+      let serialNo = 1;
+
+      uploadButton.addEventListener("click", () => {
+        const file = imageUpload.files[0];
+        if (!file) {
+          alert("Please select an image to upload.");
+          return;
+        }
+
+        // Limit the table to 4 rows
+        if (serialNo > 4) {
+          alert("You can only upload up to 4 images.");
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          const imageUrl = event.target.result;
+
+          // Create a new row
+          const newRow = document.createElement("tr");
+
+          // Serial No. column
+          const serialNoCol = document.createElement("td");
+          serialNoCol.textContent = serialNo++;
+          newRow.appendChild(serialNoCol);
+
+          // Image column
+          const imgCol = document.createElement("td");
+          const img = document.createElement("img");
+          img.src = imageUrl;
+          img.alt = "Uploaded Image";
+          imgCol.appendChild(img);
+          newRow.appendChild(imgCol);
+
+          // URL column
+          const urlCol = document.createElement("td");
+          const urlInput = document.createElement("input");
+          urlInput.type = "text";
+          urlInput.placeholder = "Enter URL";
+          urlInput.className = "form-control";
+          urlCol.appendChild(urlInput);
+          newRow.appendChild(urlCol);
+
+          // Action column
+          const actionCol = document.createElement("td");
+          const deleteButton = document.createElement("button");
+          deleteButton.className = "btn btn-danger btn-sm";
+
+          // Add Font Awesome trash icon
+          const deleteIcon = document.createElement("i");
+          deleteIcon.className = "fas fa-trash"; // Font Awesome trash icon class
+          deleteButton.appendChild(deleteIcon);
+
+          // Add click event listener
+          deleteButton.addEventListener("click", () => {
+            newRow.remove();
+            updateSerialNumbers();
+          });
+
+          actionCol.appendChild(deleteButton);
+          newRow.appendChild(actionCol);
+
+          // Append the new row to the table
+          imageTable.appendChild(newRow);
+
+          // Clear the input field
+          imageUpload.value = "";
+        };
+
+        reader.readAsDataURL(file);
+      });
+
+      submitButton.addEventListener("click", () => {
+        const rows = document.querySelectorAll("#imageTable tr");
+        if (rows.length === 0) {
+          alert("No data to submit.");
+          return;
+        }
+
+        const tableData = [];
+        rows.forEach((row) => {
+          const serial = row.cells[0].textContent;
+          const imageSrc = row.cells[1].querySelector("img").src;
+          const url = row.cells[2].querySelector("input").value;
+          tableData.push({ serial, imageSrc, url });
+        });
+
+        console.log("Submitted Data:", tableData);
+        alert("Data has been submitted. Check console for details.");
+      });
+
+      // Function to update Serial Numbers after deleting a row
+      function updateSerialNumbers() {
+        const rows = document.querySelectorAll("#imageTable tr");
+        serialNo = 1; // Reset serial number
+        rows.forEach((row) => {
+          row.cells[0].textContent = serialNo++;
+        });
+      }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

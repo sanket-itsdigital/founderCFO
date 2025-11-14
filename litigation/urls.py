@@ -21,4 +21,6 @@ urlpatterns = [
     ),
     path("cases/labour-pf/", LabourPFCasesListView.as_view(), name="cases-labour-pf"),
     path("analytics/", AnalyticsView.as_view(), name="analytics"),
+    
+    
 ]

@@ -1,0 +1,150 @@
+{% extends "partials/adminBase.html" %}
+{% load static %}
+
+{% block title %}Add Product{% endblock title %}
+
+{% block extra_css %}
+<link href="{% static 'libs/admin-resources/jquery.vectormap/jquery-jvectormap-1.2.2.css' %}" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
+<style>
+    body {
+        background-color: #f0d28c;
+        padding-bottom: 20px;
+    }
+
+    .form-container {
+        background-color: #ffffff;
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-heading {
+        text-align: left;
+        margin-bottom: 20px;
+        font-weight: bold;
+        font-size: 2rem;
+        color: #0088CC !important;
+    }
+
+    .description-box {
+        height: 150px;
+        resize: none;
+    }
+
+    .btn-primary {
+        background-color: #1C3452 !important;
+        border-color: #0088CC !important;
+    }
+
+    .custom-button {
+        width: 150px;
+    }
+    
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="main-content">
+    <div class="page-content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+                        <h4 class="mb-sm-0 font-size-18">Products</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="container">
+                <div class="form-container">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="mb-4">
+                            <label for="name" class="form-label">Vendor:</label>
+                            {{ form.business }}
+                            
+                        </div>
+                        <div class="mb-4">
+                            <label for="name" class="form-label">Product Name:</label>
+                            {{ form.name }}
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="name" class="form-label">Description:</label>
+                            {{ form.description }}
+                        </div>
+                        <div class="mb-4">
+                            <label for="name" class="form-label">Category:</label>
+                            {{ form.category }}
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="sku" class="form-label">SKU:</label>
+                            {{ form.sku }}
+                            {% if form.sku.errors %}
+                                <div class="text-danger small">{{ form.sku.errors.as_text }}</div>
+                            {% endif %}
+                        </div>
+
+                         <div class="mb-4">
+                            <label for="name" class="form-label">Brand:</label>
+                            {{ form.brand }}
+                        </div>
+                         <div class="mb-4">
+                            <label for="name" class="form-label">Price:</label>
+                            {{ form.price }}
+                        </div>
+                        <div class="mb-4">
+                            <label for="name" class="form-label">GST %:</label>
+                            {{ form.gst_percent }}
+                        </div>
+                         <div class="mb-4">
+                            <label for="name" class="form-label">Inventory Tracking:</label>
+                            {{ form.inventory_tracking }}
+                        </div>
+                         <div class="mb-4">
+                            <label for="name" class="form-label">Stock:</label>
+                            {{ form.stock }}
+                        </div>
+                         <div class="mb-4">
+                            <label for="name" class="form-label">Min Order Quantity:</label>
+                            {{ form.min_order_quantity }}
+                        </div>
+                         <div class="mb-4">
+                            <label for="name" class="form-label">Delivery days:</label>
+                            {{ form.delivery_days }}
+                        </div>
+                         <div class="mb-4">
+                            <label for="name" class="form-label">COD:</label>
+                            {{ form.cash_on_delivery }}
+                        </div>
+                         <div class="mb-4">
+                            <label for="name" class="form-label">Status:</label>
+                            {{ form.availability_status }}
+                        </div>
+                        
+
+                     
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary custom-button">Submit</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% block footer %}
+        {% include 'partials/footer.html' %}
+    {% endblock footer %}
+</div>
+{% endblock content %}

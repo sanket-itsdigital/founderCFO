@@ -1,5 +1,17 @@
 from django.urls import path
 
+from dataroom.admin_views import (
+    add_folder,
+    delete_folder,
+    list_folder,
+    update_folder,
+    add_category,
+    list_category,
+    update_category,
+    delete_category,
+    select_folders,
+    select_categories,
+)
 from dataroom.views.api.overview_views import OverviewView
 from dataroom.views.api.folder_views import (
     FolderListCreateView,
@@ -42,4 +54,17 @@ urlpatterns = [
     path("qa/", QuestionListCreateView.as_view(), name="qa"),
     path("qa/<uuid:pk>/", QuestionRetrieveUpdateView.as_view(), name="qa-detail"),
     path("access-logs/", AccessLogListView.as_view(), name="access-logs"),
+    # Admin Views
+    path("add-folder/", add_folder, name="add_folder"),
+    path("list-folder/", list_folder, name="list_folder"),
+    path("update-folder/<folder_id>", update_folder, name="update_folder"),
+    path("delete-folder/<folder_id>", delete_folder, name="delete_folder"),
+    # Category management (superadmin)
+    path("add-category/", add_category, name="add_category"),
+    path("list-category/", list_category, name="list_category"),
+    path("update-category/<category_id>", update_category, name="update_category"),
+    path("delete-category/<category_id>", delete_category, name="delete_category"),
+    # Founder selection
+    path("select-folders/", select_folders, name="select_folders"),
+    path("select-categories/", select_categories, name="select_categories"),
 ]

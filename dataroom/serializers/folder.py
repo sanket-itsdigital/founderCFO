@@ -7,7 +7,6 @@ class FolderSerializer(serializers.ModelSerializer):
         model = Folder
         fields = [
             "id",
-            "company",
             "name",
             "description",
             "is_active",
