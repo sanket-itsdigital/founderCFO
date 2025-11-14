@@ -36,6 +36,20 @@
         background-color: #1C3452 !important;
         border-color: #0088CC !important;
     }
+    .form-check-input:checked {
+    background-color: #895af6 !important;
+    border-color: #895af6 !important;
+  }
+
+  .form-check-input:focus {
+    border-color: #c7b0fb !important;
+    box-shadow: 0 0 0 0.25rem rgba(137, 90, 246, 0.3) !important;
+  }
+  .btn-primary {
+    background-color: #895af6 !important;
+    border-color: #895af6 !important;
+  }
+  
 
     .custom-button {
         width: 150px;
@@ -67,6 +81,14 @@
                         {% endif %}
 
                         <div class="mb-4">
+                            <label for="name" class="form-label">Name:</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="text-danger small">{{ form.name.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4 ">
                             <label for="name" class="form-label">Folder:</label>
                             {{ form.folder }}
                             {% if form.folder.errors %}
@@ -74,13 +96,7 @@
                             {% endif %}
                         </div>
 
-                        <div class="mb-4">
-                            <label for="name" class="form-label">Name:</label>
-                            {{ form.name }}
-                            {% if form.name.errors %}
-                                <div class="text-danger small">{{ form.name.errors }}</div>
-                            {% endif %}
-                        </div>
+                        
                         <div class="mb-4">
                             <label for="name" class="form-label">Description:</label>
                             {{ form.description }}

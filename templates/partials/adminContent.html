@@ -1,513 +1,251 @@
 {% load static %} {% block content %}
 
+<style>
+      .glass-dashboard {
+        background: #f7f7ff;
+        min-height: 100vh;
+        padding-bottom: 2rem;
+      }
+
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 18px;
+      }
+
+      .stat-card {
+        {% comment %} background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), #f5f1ff); {% endcomment %}
+        border: 1px solid rgba(138, 117, 238, 0.15);
+        border-radius: 18px;
+        box-shadow: 0 15px 45px rgba(25, 4, 73, 0.08);
+        padding: 22px 24px;
+        transition: transform 0.35s ease, box-shadow 0.35s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .stat-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        {% comment %} background: radial-gradient(
+          circle at top right,
+          rgba(137, 90, 246, 0.15),
+          transparent 60%
+        ); {% endcomment %}
+      }
+
+      .stat-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 55px rgba(25, 4, 73, 0.15);
+      }
+
+      .stat-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(137, 90, 246, 0.12);
+        color: #895af6;
+        margin-bottom: 18px;
+        font-size: 1.25rem;
+        z-index: 1;
+      }
+
+      .stat-label {
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 0.78rem;
+        color: #82889f;
+        font-weight: 600;
+        margin-bottom: 8px;
+        z-index: 1;
+      }
+
+      .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2251;
+        margin-bottom: 8px;
+        z-index: 1;
+      }
+
+      .trend-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        z-index: 1;
+      }
+
+      .trend-up {
+        background: rgba(94, 219, 136, 0.15);
+        color: #15a65b;
+      }
+
+      .trend-down {
+        background: rgba(255, 99, 132, 0.15);
+        color: #d13d58;
+      }
+
+      .dashboard-heading h4 {
+        font-weight: 600;
+        color: #1f2251;
+      }
+
+      .dashboard-heading span {
+        color: #8f95b2;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 575px) {
+        .stat-card {
+          padding: 18px;
+        }
+        .stat-value {
+          font-size: 1.6rem;
+        }
+      }
+
+    .icon-blue {
+        color: #007bff !important; /* Bootstrap Blue */
+        background: rgba(0, 123, 255, 0.12) !important; /* optional glow */
+    }
+
+    /* Green Icon */
+  .icon-green {
+      color: #16a34a !important;                 /* Tailwind Green 600 */
+      background: rgba(22, 163, 74, 0.12) !important;
+  }
+
+  /* Red Icon */
+  .icon-red {
+      color: #dc2626 !important;                 /* Tailwind Red 600 */
+      background: rgba(220, 38, 38, 0.12) !important;
+  }
+
+  /* Orange Icon */
+  .icon-orange {
+      color: #f97316 !important;                 /* Tailwind Orange 500 */
+      background: rgba(249, 115, 22, 0.12) !important;
+  }
+</style>
+
 <!-- ============================================================== -->
 <!-- Start right Content here -->
 <!-- ============================================================== -->
-<div class="main-content">
+<div class="main-content glass-dashboard">
   <div class="page-content">
     <div class="container-fluid">
-      <!-- start page title -->
-      <div class="row">
-        <div class="col-12">
-          <div
-            class="page-title-box d-sm-flex align-items-center justify-content-between"
-          >
-            <h4 class="mb-sm-0 font-size-18">Admin Dashboard</h4>
-          </div>
-        </div>
-      </div>
-      <!-- end page title -->
-
-      <div class="row">
-        <div class="col-xl-3 col-md-6">
-          <!-- card -->
-          <div class="card card-h-100">
-            <!-- card body -->
-            <div class="card-body">
-              <div class="d-flex align-items-center">
-                <div class="flex-grow-1">
-                  <span class="text-muted mb-3 lh-1 d-block text-truncate"
-                    >Total Balance
-                  </span>
-                  <h4 class="mb-3">
-                    <span class="counter-value" data-target="{{ total_order }}"
-                      >{{ total_order }}</span
-                    >
-                  </h4>
-                  {% comment %}
-                  <div class="text-nowrap">
-                    <span class="badge bg-soft-success text-success"
-                      >+₹20.9k</span
-                    >
-                    <span class="ms-1 text-muted font-size-13"
-                      >Since last week</span
-                    >
-                  </div>
-                  {% endcomment %}
-                </div>
-
-                <div class="flex-shrink-0 text-end dash-widget">
-                  <div
-                    id="mini-chart1"
-                    data-colors='["#190449","#895af6"]'
-                    class="apex-charts"
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <!-- end card body -->
-          </div>
-          <!-- end card -->
-        </div>
-        <!-- end col -->
-
-        <div class="col-xl-3 col-md-6">
-          <!-- card -->
-          <div class="card card-h-100">
-            <!-- card body -->
-            <div class="card-body">
-              <div class="d-flex align-items-center">
-                <div class="flex-grow-1">
-                  <span class="text-muted mb-3 lh-1 d-block text-truncate"
-                    >Total Earnings</span
-                  >
-                  <h4 class="mb-3">
-                    <span class="counter-value" data-target="{{ total_brand }}"
-                      >{{ total_brand }}</span
-                    >
-                  </h4>
-                  {% comment %}
-                  <div class="text-nowrap">
-                    <span class="badge bg-soft-danger text-danger">-Temp</span>
-                    <span class="ms-1 text-muted font-size-13"
-                      >Since last week</span
-                    >
-                  </div>
-                  {% endcomment %}
-                </div>
-                <div class="flex-shrink-0 text-end dash-widget">
-                  <div
-                    id="mini-chart2"
-                    data-colors='["#190449","#895af6"]'
-                    class="apex-charts"
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <!-- end card body -->
-          </div>
-          <!-- end card -->
-        </div>
-        <!-- end col-->
-
-        <div class="col-xl-3 col-md-6">
-          <!-- card -->
-          <div class="card card-h-100">
-            <!-- card body -->
-            <div class="card-body">
-              <div class="d-flex align-items-center">
-                <div class="flex-grow-1">
-                  <span class="text-muted mb-3 lh-1 d-block text-truncate"
-                    >Total Spending</span
-                  >
-                  <h4 class="mb-3">
-                    ₹<span
-                      class="counter-value"
-                      data-target="{{ total_amount }}"
-                      >{{ total_amount }}</span
-                    >
-                  </h4>
-                  {% comment %}
-                  <div class="text-nowrap">
-                    <span class="badge bg-soft-success text-success"
-                      >+ {{ percentage_change }}</span
-                    >
-                    <span class="ms-1 text-muted font-size-13"
-                      >Since last week</span
-                    >
-                  </div>
-                  {% endcomment %}
-                </div>
-                <div class="flex-shrink-0 text-end dash-widget">
-                  <div
-                    id="mini-chart3"
-                    data-colors='["#190449","#895af6"]'
-                    class="apex-charts"
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <!-- end card body -->
-          </div>
-          <!-- end card -->
-        </div>
-        <!-- end col -->
-
-        <div class="col-xl-3 col-md-6">
-          <!-- card -->
-          <div class="card card-h-100">
-            <!-- card body -->
-            <div class="card-body">
-              <div class="d-flex align-items-center">
-                <div class="flex-grow-1">
-                  <span class="text-muted mb-3 lh-1 d-block text-truncate"
-                    >Total Income</span
-                  >
-                  <h4 class="mb-3">
-                    <span class="counter-value" data-target="{{ total_users }}"
-                      >{{ total_users }}</span
-                    >
-                  </h4>
-                  {% comment %}
-                  <div class="text-nowrap">
-                    <span class="badge bg-soft-success text-success"
-                      >+{{ percentage_change }}%</span
-                    >
-                    <span class="ms-1 text-muted font-size-13"
-                      >Since last week</span
-                    >
-                  </div>
-                  {% endcomment %}
-                </div>
-                <div class="flex-shrink-0 text-end dash-widget">
-                  <div
-                    id="mini-chart4"
-                    data-colors='["#190449","#895af6"]'
-                    class="apex-charts"
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <!-- end card body -->
-          </div>
-          <!-- end card -->
-        </div>
-        <!-- end col -->
-      </div>
-      <!-- end row-->
-      <div class="row">
-        <div class="col-xl-3 col-md-6">
-          <!-- card -->
-          <div class="card card-h-100">
-            <!-- card body -->
-            <div class="card-body">
-              <div class="d-flex align-items-center">
-                <div class="flex-grow-1">
-                  <span class="text-muted mb-3 lh-1 d-block text-truncate"
-                    >Active Users</span
-                  >
-                  <h4 class="mb-3">
-                    <span
-                      class="counter-value"
-                      data-target="{{ total_product }}"
-                      >{{ total_product }}</span
-                    >
-                  </h4>
-                  {% comment %}
-                  <div class="text-nowrap">
-                    <span class="badge bg-soft-success text-success"
-                      >+{{ percentage_change }}%</span
-                    >
-                    <span class="ms-1 text-muted font-size-13"
-                      >Since last week</span
-                    >
-                  </div>
-                  {% endcomment %}
-                </div>
-                <div class="flex-shrink-0 text-end dash-widget">
-                  <div
-                    id="mini-chart5"
-                    data-colors='["#190449","#895af6"]'
-                    class="apex-charts"
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <!-- end card body -->
-          </div>
-          <!-- end card -->
-        </div>
-        <!-- end col -->
-        <div class="col-xl-3 col-md-6">
-          <!-- card -->
-          <div class="card card-h-100">
-            <!-- card body -->
-            <div class="card-body">
-              <div class="d-flex align-items-center">
-                <div class="flex-grow-1">
-                  <span class="text-muted mb-3 lh-1 d-block text-truncate"
-                    >Conversion</span
-                  >
-                  <h4 class="mb-3">
-                    <span
-                      class="counter-value"
-                      data-target="{{ total_vendor_store }}"
-                      >{{ total_vendor_store }}</span
-                    >
-                  </h4>
-                  {% comment %}
-                  <div class="text-nowrap">
-                    <span class="badge bg-soft-success text-success"
-                      >+{{ percentage_change }}%</span
-                    >
-                    <span class="ms-1 text-muted font-size-13"
-                      >Since last week</span
-                    >
-                  </div>
-                  {% endcomment %}
-                </div>
-                <div class="flex-shrink-0 text-end dash-widget">
-                  <div
-                    id="mini-chart6"
-                    data-colors='["#190449","#895af6"]'
-                    class="apex-charts"
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <!-- end card body -->
-          </div>
-          <!-- end card -->
-        </div>
-        <!-- end col -->
-
-        <div class="col-xl-3 col-md-6">
-          <!-- card -->
-          <div class="card card-h-100">
-            <!-- card body -->
-            <div class="card-body">
-              <div class="d-flex align-items-center">
-                <div class="flex-grow-1">
-                  <span class="text-muted mb-3 lh-1 d-block text-truncate"
-                    >MRR</span
-                  >
-                  <h4 class="mb-3">
-                    <span class="counter-value" data-target="{{ total_users }}"
-                      >{{ total_users }}</span
-                    >
-                  </h4>
-                </div>
-                <div class="flex-shrink-0 text-end dash-widget">
-                  <div
-                    id="mini-chart7"
-                    data-colors='["#190449","#895af6"]'
-                    class="apex-charts"
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <!-- end card body -->
-          </div>
-          <!-- end card -->
-        </div>
-        <!-- end col -->
-        {% comment %}
-        <div class="col-xl-3 col-md-6">
-          <!-- card -->
-          <div class="card card-h-100">
-            <!-- card body -->
-            <div class="card-body">
-              <div class="d-flex align-items-center">
-                <div class="flex-grow-1">
-                  <span class="text-muted mb-3 lh-1 d-block text-truncate"
-                    >Total User</span
-                  >
-                  <h4 class="mb-3">
-                    <span class="counter-value" data-target="{{ total_users }}"
-                      >{{ total_users }}</span
-                    >
-                  </h4>
-                </div>
-                <div class="flex-shrink-0 text-end dash-widget">
-                  <div
-                    id="mini-chart8"
-                    data-colors='["#190449","#895af6"]'
-                    class="apex-charts"
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <!-- end card body -->
-          </div>
-          <!-- end card -->
-        </div>
-        <!-- end col -->
-        {% endcomment %}
+      <div class="dashboard-heading mb-4">
+        <h4 class="mb-1">Admin Dashboard</h4>
+        <span>High level overview of your financial performance</span>
       </div>
 
-      {% comment %}
-
-      <div class="row">
-        <div class="col-xl-8">
-          <!-- card -->
-          <div class="card">
-            <!-- card body -->
-            <div class="card-body">
-              <div class="d-flex flex-wrap align-items-center mb-4">
-                <h5 class="card-title me-2">Market Overview</h5>
-                <div class="ms-auto">
-                  <div>
-                    <button type="button" class="btn btn-soft-primary btn-sm">
-                      ALL
-                    </button>
-                    <button type="button" class="btn btn-soft-secondary btn-sm">
-                      1M
-                    </button>
-                    <button type="button" class="btn btn-soft-secondary btn-sm">
-                      6M
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-soft-secondary btn-sm active"
-                    >
-                      1Y
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="row align-items-center">
-                <div class="col-xl-8">
-                  <div>
-                    <div
-                      id="market-overview"
-                      data-colors='["#190449; !important ;", "#895af6"]'
-                      class="apex-charts"
-                    ></div>
-                  </div>
-                </div>
-                <div class="col-xl-4">
-                  <div class="p-4">
-                    <div class="mt-4 pt-2">hello</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- end card -->
+      <div class="dashboard-grid mb-3">
+        <div class="stat-card">
+          <div class="stat-icon icon-blue">
+            <i data-feather="dollar-sign"></i>
           </div>
-          <!-- end col -->
+          <div class="stat-label">Total Balance</div>
+          <div class="stat-value">${{ total_order|default:0 }}</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="trending-up" width="14"></i>
+            {{total_order_percentage|default:"0"}}%
+          </span>
         </div>
-        <!-- end row-->
 
-        <div class="col-xl-4">
-          <!-- card -->
-          <div class="card">
-            <!-- card body -->
-            <div class="card-body">
-              <div class="d-flex flex-wrap align-items-center mb-4">
-                <h5 class="card-title me-2">Bookings by Locations</h5>
-                <div class="ms-auto">
-                  <div class="dropdown">
-                    <a
-                      class="dropdown-toggle text-reset"
-                      href="#"
-                      id="dropdownMenuButton1"
-                      data-bs-toggle="dropdown"
-                      aria-haspopup="true"
-                      aria-expanded="false"
-                    >
-                      <span class="text-muted font-size-12">Sort By:</span>
-                      <span class="fw-medium"
-                        >World <i class="mdi mdi-chevron-down ms-1"></i
-                      ></span>
-                    </a>
-
-                    <div
-                      class="dropdown-menu dropdown-menu-end"
-                      aria-labelledby="dropdownMenuButton1"
-                    >
-                      {% for city_name in result.keys %}
-                      <a class="dropdown-item" href="#">{{ city_name }}</a>
-                      {% endfor %}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Optional chart container (e.g. Chart.js or ApexCharts) -->
-              <div
-                id="sales-by-locations"
-                data-colors='["#0a3622"]'
-                style="height: 253px"
-              ></div>
-
-              <div class="px-2 py-2">
-                {% for city_name, percent in result.items %}
-                <p class="{% if not forloop.first %}mt-3 {% endif %}mb-1">
-                  {{ city_name|default:"Unknown City" }}
-                  <span class="float-end">{{ percent }}%</span>
-                </p>
-                <div class="progress mt-2" style="height: 6px">
-                  <div
-                    class="progress-bar progress-bar-striped"
-                    role="progressbar"
-                    style="width: {{ percent }}%; background-color: #F0D28C"
-                    aria-valuenow="{{ percent }}"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                  ></div>
-                </div>
-                {% empty %}
-                <p class="text-muted">No booking data available</p>
-                {% endfor %}
-              </div>
-            </div>
-
-            <!-- end card body -->
+        <div class="stat-card">
+          <div class="stat-icon icon-orange">
+            <i data-feather="navigation"></i>
           </div>
-          <!-- end card -->
+          <div class="stat-label">Total Earnings</div>
+          <div class="stat-value">${{ total_brand|default:0 }}</div>
+          <span class="trend-pill trend-down">
+            <i data-feather="trending-down" width="14"></i>
+            {{total_brand_percentage|default:"0"}}%
+          </span>
         </div>
-        <!-- end col -->
+
+        <div class="stat-card">
+          <div class="stat-icon icon-red">
+            <i data-feather="credit-card"></i>
+          </div>
+          <div class="stat-label">Total Spending</div>
+          <div class="stat-value">${{ total_amount|default:0 }}</div>
+          <span class="trend-pill trend-down">
+            <i data-feather="arrow-down-right" width="14"></i>
+            {{total_amount_percentage|default:"0"}}%
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-green">
+            <i data-feather="activity"></i>
+          </div>
+          <div class="stat-label">Total Income</div>
+          <div class="stat-value">${{ total_users|default:0 }}</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="arrow-up-right" width="14"></i>
+            {{total_users_percentage|default:"0"}}%
+          </span>
+        </div>
       </div>
-      {% endcomment %}
 
-      <!-- end row-->
+      <div class="dashboard-grid">
+        <div class="stat-card">
+          <div class="stat-label">Revenue</div>
+          <div class="stat-value">${{ total_amount|default:0 }}</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="trending-up" width="14"></i>
+            {{total_amount_percentage|default:"0"}}%
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Active Users</div>
+          <div class="stat-value">{{ total_product|default:0 }}</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="user-check" width="14"></i>
+            {{total_product_percentage|default:"0"}}%
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Conversion</div>
+          <div class="stat-value">{{ total_vendor_store|default:"0" }}%</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="activity" width="14"></i>
+            {{total_vendor_store_percentage|default:"0"}}%
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">MRR</div>
+          <div class="stat-value">${{ total_users|default:0 }}</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="trending-up" width="14"></i>
+            {{total_users_percentage|default:"0"}}%
+          </span>
+        </div>
+      </div>
     </div>
-    <!-- container-fluid -->
   </div>
-  <!-- End Page-content -->
 
   {% block footer %} {% include 'partials/footer.html'%} {% endblock footer %}
 </div>
-<!-- end main content-->
-{% endblock content %} {% block extra_js %}
 
+{% endblock content %} {% block extra_js %}
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-      var options = {
-          chart: {
-              height: 350,
-              type: "line",  // ensure this is 'line'
-              toolbar: { show: false }
-          },
-          series: [{
-              name: "Bookings",
-              type: "line",  // explicitly set type here too
-              data: {{ bookings|safe }}
-          }],
-          xaxis: {
-              categories: {{ months|safe }},
-          },
-          stroke: {
-              curve: "smooth",  // or "straight"
-              width: 3          // ensures line is visible
-          },
-          markers: {
-              size: 5,
-              colors: ['#495057'],  // optional: marker color
-              strokeColors: "#fff",
-              strokeWidth: 2
-          },
-          colors: ['#495057'],  // line color
-          tooltip: {
-              shared: true,
-              intersect: false
-          }
-      };
-
-      var chart = new ApexCharts(document.querySelector("#market-overview"), options);
-      chart.render();
+    if (window.feather) {
+      window.feather.replace();
+    }
   });
 </script>
-
 {% endblock extra_js %}
