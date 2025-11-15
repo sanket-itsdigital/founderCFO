@@ -16,19 +16,20 @@ class FolderListCreateView(generics.ListCreateAPIView):
         # Superusers see all folders
         if self.request.user.is_superuser:
             return Folder.objects.filter(is_active=True).order_by("name")
-        
+
         # Companies see only their selected folders
         if hasattr(self.request.user, "companies"):
             company = self.request.user.companies.first()
             if company:
                 from dataroom.models import CompanyFolderSelection
+
                 selected_folder_ids = CompanyFolderSelection.objects.filter(
                     company=company
                 ).values_list("folder_id", flat=True)
                 return Folder.objects.filter(
                     id__in=selected_folder_ids, is_active=True
                 ).order_by("name")
-        
+
         return Folder.objects.none()
 
     def perform_create(self, serializer):

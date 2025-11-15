@@ -18,5 +18,6 @@ class AccessLogSerializer(serializers.ModelSerializer):
             "action",
             "timestamp",
             "ip_address",
+            "created_at",
         ]
-        read_only_fields = ["id", "timestamp"]
+        read_only_fields = ["id", "timestamp", "created_at"]

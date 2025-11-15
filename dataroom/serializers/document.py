@@ -52,7 +52,7 @@ class DocumentSerializer(serializers.ModelSerializer):
 class DocumentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
-        fields = ["company", "folder", "name", "file", "access_notes"]
+        fields = ["id", "company", "folder", "name", "file", "access_notes"]
 
     def create(self, validated_data):
         # size_bytes from uploaded file

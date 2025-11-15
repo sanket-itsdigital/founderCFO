@@ -14,6 +14,7 @@ class AvailableFoldersListView(generics.ListAPIView):
     List all available folders (created by super admin).
     Shows selection status for the company.
     """
+
     serializer_class = FolderSelectionSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = Folder.objects.filter(is_active=True).order_by("name")
@@ -30,6 +31,7 @@ class CompanyFolderSelectionView(APIView):
     POST: Select folders (provide list of folder IDs)
     DELETE: Deselect folders (provide list of folder IDs)
     """
+
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_company(self):
@@ -126,6 +128,7 @@ class CompanySelectedFoldersListView(generics.ListAPIView):
     """
     List folders selected by the company.
     """
+
     serializer_class = CompanyFolderSelectionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -133,8 +136,9 @@ class CompanySelectedFoldersListView(generics.ListAPIView):
         if hasattr(self.request.user, "companies"):
             company = self.request.user.companies.first()
             if company:
-                return CompanyFolderSelection.objects.filter(
-                    company=company
-                ).select_related("folder").order_by("-selected_at")
+                return (
+                    CompanyFolderSelection.objects.filter(company=company)
+                    .select_related("folder")
+                    .order_by("-selected_at")
+                )
         return CompanyFolderSelection.objects.none()
-

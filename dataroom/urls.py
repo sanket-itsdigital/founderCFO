@@ -20,6 +20,7 @@ from dataroom.views.api.folder_views import (
 from dataroom.views.api.document_views import (
     DocumentListCreateView,
     DocumentRetrieveUpdateView,
+    DocumentDownloadView,
     FolderDocumentsView,
     DocumentVersionListCreateView,
     VersionCompareView,
@@ -57,19 +58,48 @@ urlpatterns = [
         DocumentRetrieveUpdateView.as_view(),
         name="document-detail",
     ),
+    path(
+        "documents/<uuid:pk>/download/",
+        DocumentDownloadView.as_view(),
+        name="document-download",
+    ),
     path("versions/", DocumentVersionListCreateView.as_view(), name="versions"),
     path("versions/compare/", VersionCompareView.as_view(), name="version-compare"),
     path("qa/", QuestionListCreateView.as_view(), name="qa"),
     path("qa/<uuid:pk>/", QuestionRetrieveUpdateView.as_view(), name="qa-detail"),
     path("access-logs/", AccessLogListView.as_view(), name="access-logs"),
     # Company Folder Selection APIs
-    path("company/folders/available/", AvailableFoldersListView.as_view(), name="available-folders"),
-    path("company/folders/select/", CompanyFolderSelectionView.as_view(), name="select-folders"),
-    path("company/folders/selected/", CompanySelectedFoldersListView.as_view(), name="selected-folders"),
+    path(
+        "company/folders/available/",
+        AvailableFoldersListView.as_view(),
+        name="available-folders",
+    ),
+    path(
+        "company/folders/select/",
+        CompanyFolderSelectionView.as_view(),
+        name="select-folders",
+    ),
+    path(
+        "company/folders/selected/",
+        CompanySelectedFoldersListView.as_view(),
+        name="selected-folders",
+    ),
     # Company Category Selection APIs
-    path("company/categories/available/", AvailableCategoriesListView.as_view(), name="available-categories"),
-    path("company/categories/select/", CompanyCategorySelectionView.as_view(), name="select-categories"),
-    path("company/categories/selected/", CompanySelectedCategoriesListView.as_view(), name="selected-categories"),
+    path(
+        "company/categories/available/",
+        AvailableCategoriesListView.as_view(),
+        name="available-categories",
+    ),
+    path(
+        "company/categories/select/",
+        CompanyCategorySelectionView.as_view(),
+        name="select-categories",
+    ),
+    path(
+        "company/categories/selected/",
+        CompanySelectedCategoriesListView.as_view(),
+        name="selected-categories",
+    ),
     # Admin Views
     path("add-folder/", add_folder, name="add_folder"),
     path("list-folder/", list_folder, name="list_folder"),
