@@ -24,10 +24,43 @@ class DocumentListCreateView(generics.ListCreateAPIView):
         company_id = self.request.query_params.get("company_id")
         folder_id = self.request.query_params.get("folder_id")
         search = self.request.query_params.get("search")
+        
+        # If company_id is provided, filter by company
         if company_id:
             qs = qs.filter(company_id=company_id)
+            
+            # For non-superusers, only show documents from selected folders
+            if not self.request.user.is_superuser:
+                from dataroom.models import CompanyFolderSelection, CompanyCategorySelection
+                
+                # Get selected folders for this company
+                selected_folders = CompanyFolderSelection.objects.filter(
+                    company_id=company_id
+                ).values_list("folder_id", flat=True)
+                
+                # Get selected categories for this company
+                selected_categories = CompanyCategorySelection.objects.filter(
+                    company_id=company_id
+                ).values_list("category_id", flat=True)
+                
+                # Filter documents by selected folders
+                qs = qs.filter(folder_id__in=selected_folders)
+                
+                # Optionally filter by selected categories if category field exists
+                # Note: Document model doesn't have category field, so this is for future use
+        
         if folder_id:
             qs = qs.filter(folder_id=folder_id)
+            
+            # For non-superusers, verify folder is selected by company
+            if not self.request.user.is_superuser and company_id:
+                from dataroom.models import CompanyFolderSelection
+                is_selected = CompanyFolderSelection.objects.filter(
+                    company_id=company_id, folder_id=folder_id
+                ).exists()
+                if not is_selected:
+                    return qs.none()
+        
         if search:
             qs = qs.filter(name__icontains=search)
         return qs.select_related("folder")

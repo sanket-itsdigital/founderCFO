@@ -57,5 +57,6 @@ urlpatterns = [
     path("api/account/", include("accounts.urls")),
     path("api/litigation/", include("litigation.urls", namespace="litigation")),
     path("api/dataroom/", include("dataroom.urls", namespace="dataroom")),
+    path("api/compliance/", include("compliance.urls", namespace="compliance")),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

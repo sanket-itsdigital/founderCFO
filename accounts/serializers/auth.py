@@ -136,3 +136,18 @@ class UserProfileSerializer(ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "email", "role", "status", "created_at"]
+
+
+class UserProfileListSerializer(ModelSerializer):
+    """Serializer for listing user profile data in API responses."""
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "first_name",
+            "email",
+            "role",
+            "status",
+        ]
+        read_only_fields = ["id", "email", "role", "status"]

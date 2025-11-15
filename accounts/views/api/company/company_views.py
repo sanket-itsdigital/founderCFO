@@ -11,9 +11,24 @@ class CompanyCreateView(generics.CreateAPIView):
     serializer_class = CompanySerializer
     permission_classes = [IsAuthenticated]
 
+    def create(self, request, *args, **kwargs):
+        """Override to check if user already has a company."""
+        # Check if user already has a company
+        if hasattr(request.user, "companies"):
+            existing_company = request.user.companies.first()
+            if existing_company:
+                return Response(
+                    {
+                        "detail": "You already have a company. Each user can only have one company.",
+                        "existing_company": {
+                            "id": str(existing_company.id),
+                            "name": existing_company.name,
+                        },
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
-
-    def create(self, request, *args, **kwargs):
-        """Override to return a friendly message on success."""
-        return super().create(request, *args, **kwargs)

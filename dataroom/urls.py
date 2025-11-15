@@ -29,6 +29,14 @@ from dataroom.views.api.qa_views import (
     QuestionRetrieveUpdateView,
 )
 from dataroom.views.api.access_log_views import AccessLogListView
+from dataroom.views.api.company import (
+    AvailableFoldersListView,
+    CompanyFolderSelectionView,
+    CompanySelectedFoldersListView,
+    AvailableCategoriesListView,
+    CompanyCategorySelectionView,
+    CompanySelectedCategoriesListView,
+)
 
 app_name = "dataroom"
 
@@ -54,6 +62,14 @@ urlpatterns = [
     path("qa/", QuestionListCreateView.as_view(), name="qa"),
     path("qa/<uuid:pk>/", QuestionRetrieveUpdateView.as_view(), name="qa-detail"),
     path("access-logs/", AccessLogListView.as_view(), name="access-logs"),
+    # Company Folder Selection APIs
+    path("company/folders/available/", AvailableFoldersListView.as_view(), name="available-folders"),
+    path("company/folders/select/", CompanyFolderSelectionView.as_view(), name="select-folders"),
+    path("company/folders/selected/", CompanySelectedFoldersListView.as_view(), name="selected-folders"),
+    # Company Category Selection APIs
+    path("company/categories/available/", AvailableCategoriesListView.as_view(), name="available-categories"),
+    path("company/categories/select/", CompanyCategorySelectionView.as_view(), name="select-categories"),
+    path("company/categories/selected/", CompanySelectedCategoriesListView.as_view(), name="selected-categories"),
     # Admin Views
     path("add-folder/", add_folder, name="add_folder"),
     path("list-folder/", list_folder, name="list_folder"),

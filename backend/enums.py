@@ -40,3 +40,31 @@ class RiskLevelChoices(TextChoices):
     MEDIUM = "medium", "medium"
     HIGH = "high", "high"
     CRITICAL = "critical", "critical"
+
+class CompanyStatusChoices(TextChoices):
+    ANNUAL = "Annual", "Annual"
+    ANNUALLY = "Annually", "Annually"
+    HALF_YEARLY = "Half-Yearly", "Half-Yearly"
+    QUARTERLY = "Quarterly", "Quarterly"
+    MONTHLY = "Monthly", "Monthly"
+    WEEKLY = "Weekly", "Weekly"
+    DAILY = "Daily", "Daily"
+    
+class ComplianceStatusChoices(TextChoices):
+    AUTO = "Auto", "Auto"
+    OVERDUE = "Overdue", "Overdue"
+    COMPLETED = "Completed", "Completed"
+    PENDING = "Pending", "Pending"
+    
+
+class ActNameChoices(TextChoices):
+    COMPANIES_ACT_2013 = "Companies Act, 2013", "Companies Act, 2013"
+    FEMA = "FEMA", "FEMA"
+    LLP_ACT_2008 = "LLP Act 2008", "LLP Act 2008"
+    CGST_ACT_2017 = "CGST ACT 2017", "CGST ACT 2017"
+    INCOME_TAX_ACT_1961 = "Income Tax Act, 1961", "Income Tax Act, 1961"
+    ESI_ACT_1948 = "ESI Act 1948", "ESI Act 1948"
+    EPF_ACT_1952 = "EPF Act 1952", "EPF Act 1952"
+    SEBI_LODR = "SEBI (LODR)", "SEBI (LODR)"
+    SEBI = "SEBI", "SEBI"
+    MSME_ACT = "MSME Act", "MSME Act"
