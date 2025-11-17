@@ -26,11 +26,7 @@ class DashboardView(APIView):
         qs = self.get_queryset(request)
 
         total_cases = qs.count()
-        total_exposure = (
-            qs.aggregate(total=Sum("total_exposure"))[["total"]]
-            if (agg := qs.aggregate(total=Sum("total_exposure")))
-            else None
-        )
+        agg = qs.aggregate(total=Sum("total_exposure"))
         total_exposure = (agg or {}).get("total") or 0
 
         high_risk_cases = (

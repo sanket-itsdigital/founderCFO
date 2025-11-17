@@ -1,5 +1,6 @@
 from datetime import timedelta
 from django.db.models import Count, Sum
+from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -47,13 +48,17 @@ class OverviewView(APIView):
         # Simple analytics examples
         uploads_last_30 = (
             documents.filter(created_at__gte=last_30)
-            .extra(select={"ym": "strftime('%Y-%m', created_at)"})
+            .annotate(ym=TruncMonth("created_at"))
             .values("ym")
             .annotate(count=Count("id"))
+            .order_by("ym")
         )
 
         analytics = {
-            "uploads_over_time": list(uploads_last_30),
+            "uploads_over_time": [
+                {"month": row["ym"].strftime("%Y-%m") if row["ym"] else None, "count": row["count"]}
+                for row in uploads_last_30
+            ],
         }
 
         data = {
