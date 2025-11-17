@@ -41,6 +41,12 @@ class RiskLevelChoices(TextChoices):
     HIGH = "high", "high"
     CRITICAL = "critical", "critical"
 
+
+class SuccessLikelihoodChoices(TextChoices):
+    LOW = "low", "Low"
+    MEDIUM = "medium", "Medium"
+    HIGH = "high", "High"
+
 class CompanyStatusChoices(TextChoices):
     ANNUAL = "Annual", "Annual"
     ANNUALLY = "Annually", "Annually"

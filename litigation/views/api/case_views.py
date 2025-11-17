@@ -1,9 +1,10 @@
+from django.db.models import Q
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
 from backend.enums import CaseTypeChoices
 from litigation.models import Case
-from litigation.serializers import CaseSerializer
+from litigation.serializers import CaseSerializer, CaseListSerializer
 
 
 class CompanyCasesQuerysetMixin:
@@ -22,15 +23,23 @@ class CompanyCasesQuerysetMixin:
         if risk_val:
             qs = qs.filter(risk=risk_val)
         if search:
-            qs = qs.filter(case_number__icontains=search) | qs.filter(
-                synopsis__icontains=search
+            qs = qs.filter(
+                Q(case_number__icontains=search) | Q(synopsis__icontains=search)
             )
         return qs.order_by("-issue_date", "-created_at")
 
 
-class AllCasesListView(CompanyCasesQuerysetMixin, generics.ListAPIView):
+class AllCasesListView(CompanyCasesQuerysetMixin, generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CaseSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "get":
+            return CaseListSerializer
+        return CaseSerializer
 
 
 class GSTCasesListView(AllCasesListView):
@@ -56,3 +65,11 @@ class LabourPFCasesListView(AllCasesListView):
                 ]
             )
         )
+
+
+class CaseDetailView(CompanyCasesQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CaseSerializer
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)

@@ -1,12 +1,13 @@
-from collections import Counter
+from collections import Counter, OrderedDict
 from datetime import date
 
-from django.db.models import Sum
+from django.db.models import Sum, Count
+from django.db.models.functions import TruncMonth
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from backend.enums import CaseStatusChoices
+from backend.enums import CaseStatusChoices, CaseTypeChoices
 from litigation.models import Case
 
 
@@ -23,33 +24,62 @@ class AnalyticsView(APIView):
     def get(self, request, *args, **kwargs):
         qs = self.get_queryset(request)
 
-        # Cases by Type
+        # Cases by Type (include missing values as 0)
         cases_by_type = qs.values_list("type", flat=True)
         type_counter = Counter(cases_by_type)
+        type_counts = {
+            choice.value: type_counter.get(choice.value, 0)
+            for choice in CaseTypeChoices
+        }
 
-        # Cases by Status
+        # Cases by Status (include missing values as 0)
         cases_by_status = qs.values_list("status", flat=True)
         status_counter = Counter(cases_by_status)
+        status_counts = {
+            choice.value: status_counter.get(choice.value, 0)
+            for choice in CaseStatusChoices
+        }
 
-        # Cases filed over time (by month for last 12 months)
-        today = date.today()
-        series = {}
-        for c in qs.only("issue_date"):
-            if not c.issue_date:
-                continue
-            key = c.issue_date.strftime("%Y-%m")
-            series[key] = series.get(key, 0) + 1
+        # Cases filed over time (last 12 months, include zeros)
+        monthly_qs = (
+            qs.filter(issue_date__isnull=False)
+            .annotate(month=TruncMonth("issue_date"))
+            .values("month")
+            .annotate(count=Count("id"))
+        )
+        monthly_counts = {
+            row["month"].strftime("%Y-%m"): row["count"]
+            for row in monthly_qs
+            if row["month"]
+        }
+        today = date.today().replace(day=1)
+        months = []
+        year, month = today.year, today.month
+        for _ in range(12):
+            months.append((year, month))
+            month -= 1
+            if month == 0:
+                month = 12
+                year -= 1
+        months.reverse()
+        series = OrderedDict(
+            (f"{y}-{m:02d}", monthly_counts.get(f"{y}-{m:02d}", 0)) for y, m in months
+        )
 
         # Financial exposure by type (Lakhs)
         exposure_by_type = (
             qs.values("type").annotate(total=Sum("total_exposure")).order_by("type")
         )
+        exposure_map = {
+            row["type"]: float(row["total"]) / 100000 if row["total"] else 0.0
+            for row in exposure_by_type
+        }
         exposure_lakhs = [
             {
-                "type": row["type"],
-                "total_lakhs": float(row["total"]) / 100000 if row["total"] else 0.0,
+                "type": choice.value,
+                "total_lakhs": round(exposure_map.get(choice.value, 0.0), 2),
             }
-            for row in exposure_by_type
+            for choice in CaseTypeChoices
         ]
 
         # Top 10 cases by exposure
@@ -69,27 +99,36 @@ class AnalyticsView(APIView):
         ]
 
         # Key insights (simple heuristics)
-        insights = []
-        if exposure_lakhs:
-            max_type = max(exposure_lakhs, key=lambda x: x["total_lakhs"])  # type: ignore[arg-type]
-            insights.append(
-                f"Highest financial exposure in {max_type['type']} (~{max_type['total_lakhs']:.2f} Lakh)."
-            )
-        if status_counter:
-            open_count = status_counter.get(
-                CaseStatusChoices.OPEN, 0
-            ) + status_counter.get("open", 0)
-            in_progress = status_counter.get(
-                CaseStatusChoices.IN_PROGRESS, 0
-            ) + status_counter.get("in progress", 0)
-            insights.append(f"{open_count} open and {in_progress} in-progress cases.")
-        if series:
-            recent_key = max(series.keys())
-            insights.append(f"Recent filings: {series[recent_key]} in {recent_key}.")
+        total_cases = qs.count()
+        most_common_type = (
+            max(type_counts.items(), key=lambda x: x[1]) if type_counts else (None, 0)
+        )
+        highest_exposure = (
+            max(exposure_lakhs, key=lambda x: x["total_lakhs"])
+            if exposure_lakhs
+            else {"type": None, "total_lakhs": 0}
+        )
+        resolved = status_counts.get(CaseStatusChoices.RESOLVED, 0)
+        resolution_rate = round((resolved / total_cases) * 100) if total_cases else 0
+        insights = {
+            "most_common_type": {
+                "type": most_common_type[0],
+                "count": most_common_type[1],
+            },
+            "highest_exposure_type": {
+                "type": highest_exposure["type"],
+                "total_lakhs": highest_exposure["total_lakhs"],
+            },
+            "resolution_rate": {
+                "percent": resolution_rate,
+                "resolved_cases": resolved,
+                "total_cases": total_cases,
+            },
+        }
 
         data = {
-            "cases_by_type": type_counter,
-            "cases_by_status": status_counter,
+            "cases_by_type": type_counts,
+            "cases_by_status": status_counts,
             "cases_over_time": series,
             "exposure_by_type_lakhs": exposure_lakhs,
             "top_cases_by_exposure": top_cases,

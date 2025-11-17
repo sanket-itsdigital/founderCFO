@@ -56,7 +56,10 @@ class OverviewView(APIView):
 
         analytics = {
             "uploads_over_time": [
-                {"month": row["ym"].strftime("%Y-%m") if row["ym"] else None, "count": row["count"]}
+                {
+                    "month": row["ym"].strftime("%Y-%m") if row["ym"] else None,
+                    "count": row["count"],
+                }
                 for row in uploads_last_30
             ],
         }

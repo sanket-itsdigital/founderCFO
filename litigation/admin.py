@@ -19,7 +19,5 @@ class CaseAdmin(admin.ModelAdmin):
     )
     search_fields = ("case_number", "company__name", "synopsis")
     list_filter = ("type", "status", "risk", "issue_date", "company")
-    readonly_fields = ("total_exposure",)
     ordering = ("-created_at",)
     date_hierarchy = "issue_date"
-
