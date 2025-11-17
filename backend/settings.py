@@ -167,7 +167,7 @@ SIMPLE_JWT = {
 }
 
 # CORS (dev-friendly; tighten for production)
-# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 # LOGIN_URL = "/admin/login/"
 
