@@ -167,7 +167,7 @@ SIMPLE_JWT = {
 }
 
 # CORS (dev-friendly; tighten for production)
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_ALL_ORIGINS = True
 
 # LOGIN_URL = "/admin/login/"
 
@@ -183,6 +183,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
     "http://127.0.0.1:8000/",
     "https://vendor.rabbitstay.com",
     "https://rabbitstay.com",
