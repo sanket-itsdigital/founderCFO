@@ -1,3 +1,4 @@
+from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from django.contrib.auth.password_validation import validate_password
 from accounts.models import User
@@ -22,6 +23,7 @@ class RegisterUserSerializer(ModelSerializer):
             "email",
             "mobile_number",
             "role",
+            "profile_image",
             "password",
             "status",
         ]
@@ -119,23 +121,42 @@ class ResetPasswordSerializer(Serializer):
 class UserProfileSerializer(ModelSerializer):
     """Serializer for exposing user profile data in API responses."""
 
+    full_name = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = User
         fields = [
             "id",
+            "first_name",
+            "middle_name",
+            "last_name",
             "full_name",
-            "contact_phone",
             "email",
-            "gender",
-            "address",
-            "city",
-            "state",
-            "pincode",
+            "mobile_number",
+            "profile_image",
             "role",
             "status",
             "created_at",
         ]
-        read_only_fields = ["id", "email", "role", "status", "created_at"]
+        read_only_fields = ["id", "email", "role", "status", "created_at", "full_name"]
+
+    def get_full_name(self, obj):
+        return obj.full_name
+
+    def update(self, instance, validated_data):
+        profile_image = validated_data.pop("profile_image", serializers.empty)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if profile_image is not serializers.empty:
+            if profile_image is None:
+                instance.profile_image = None
+            else:
+                instance.profile_image = profile_image
+
+        instance.save()
+        return instance
 
 
 class UserProfileListSerializer(ModelSerializer):
@@ -146,8 +167,10 @@ class UserProfileListSerializer(ModelSerializer):
         fields = [
             "id",
             "first_name",
+            "last_name",
             "email",
             "role",
             "status",
+            "profile_image",
         ]
-        read_only_fields = ["id", "email", "role", "status"]
+        read_only_fields = ["id", "email", "role", "status", "profile_image"]

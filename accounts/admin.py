@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from accounts.models import Company, User
+from accounts.models import Company, TeamMember, User
 
 # Register your models here.
 
@@ -17,3 +17,17 @@ class UserAdmin(admin.ModelAdmin):
     search_fields = ("email", "first_name", "last_name")
     list_filter = ("is_active", "is_staff", "role", "status")
     ordering = ("-id",)
+
+
+@admin.register(TeamMember)
+class TeamMemberAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "company",
+        "user",
+        "role",
+        "is_active",
+        "created_at",
+    )
+    search_fields = ("company__name", "user__email", "user__first_name", "user__last_name")
+    list_filter = ("role", "is_active")

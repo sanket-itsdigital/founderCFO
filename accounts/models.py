@@ -51,6 +51,11 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         blank=True,
         null=True,
     )
+    profile_image = models.ImageField(
+        upload_to="users/profile_images/",
+        blank=True,
+        null=True,
+    )
     role = models.CharField(
         choices=UserRoleChoices.choices,
         default=UserRoleChoices.FOUNDER,
@@ -69,6 +74,11 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
 
     def __str__(self):
         return self.email
+
+    @property
+    def full_name(self):
+        parts = [self.first_name, self.middle_name, self.last_name]
+        return " ".join(part for part in parts if part).strip()
 
     class Meta:
         db_table = "user"
@@ -95,3 +105,42 @@ class Company(BaseModel):
         db_table = "company"
         verbose_name = "Company"
         verbose_name_plural = "Companies"
+
+
+class TeamMember(BaseModel):
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name="team_members",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="team_memberships",
+    )
+    invited_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invited_team_members",
+    )
+    role = models.CharField(
+        choices=UserRoleChoices.choices,
+        max_length=20,
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "team_member"
+        verbose_name = "Team Member"
+        verbose_name_plural = "Team Members"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "user"],
+                name="unique_company_user_membership",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.company.name} - {self.user.email}"

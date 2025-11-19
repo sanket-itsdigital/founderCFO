@@ -9,7 +9,12 @@ from litigation.serializers import CaseSerializer, CaseListSerializer
 
 class CompanyCasesQuerysetMixin:
     def get_queryset(self):
-        qs = Case.objects.filter(company__owner=self.request.user)
+        if getattr(self, "swagger_fake_view", False):
+            return Case.objects.none()
+        user = getattr(self.request, "user", None)
+        if not user or not user.is_authenticated:
+            return Case.objects.none()
+        qs = Case.objects.filter(company__owner=user)
         company_id = self.request.query_params.get("company_id")
         if company_id:
             qs = qs.filter(company_id=company_id)
