@@ -1,9 +1,10 @@
 from decimal import Decimal
 
+from django.db import transaction
 from rest_framework import serializers
 
 from accounts.models import Company
-from captable.enums import InvestorType
+from captable.enums import InvestorType, ShareClassType
 from captable.models import (
     CapTableEventDocument,
     CapTableEvents,
@@ -59,6 +60,60 @@ class CapTableEventDocumentSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "file", "created_at")
         read_only_fields = ("id", "created_at")
 
+    def create(self, validated_data):
+        if not validated_data.get("name") and validated_data.get("file"):
+            validated_data["name"] = validated_data["file"].name
+        return super().create(validated_data)
+
+
+class CapTableEventDocumentUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(required=False)
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        required=False,
+        allow_empty=False,
+    )
+    names = serializers.ListField(
+        child=serializers.CharField(max_length=255, allow_blank=True),
+        required=False,
+    )
+
+    def validate(self, attrs):
+        file = attrs.get("file")
+        files = attrs.get("files")
+        if not file and not files:
+            raise serializers.ValidationError("Provide at least one file.")
+        if file and files:
+            raise serializers.ValidationError("Use either 'file' or 'files', not both.")
+
+        names = attrs.get("names") or []
+        expected_length = 1 if file else len(files or [])
+        if names and len(names) not in (0, expected_length):
+            raise serializers.ValidationError(
+                {"names": "Provide one name per uploaded file."}
+            )
+        return attrs
+
+    def save(self, *, event, user):
+        files = list(self.validated_data.get("files") or [])
+        file = self.validated_data.get("file")
+        if file:
+            files = [file]
+        names = self.validated_data.get("names") or []
+
+        documents = []
+        for index, uploaded_file in enumerate(files):
+            name = names[index] if index < len(names) else uploaded_file.name
+            document = CapTableEventDocument.objects.create(
+                event=event,
+                name=name,
+                file=uploaded_file,
+                created_by=user,
+                updated_by=user,
+            )
+            documents.append(document)
+        return documents
+
 
 class CapitalizationTableSerializer(serializers.ModelSerializer):
     event_id = serializers.UUIDField(write_only=True)
@@ -73,6 +128,7 @@ class CapitalizationTableSerializer(serializers.ModelSerializer):
             "event_id",
             "shareholder_id",
             "shareholder",
+            "event",
             "share_class_type",
             "share_class_name",
             "shares_issued",
@@ -97,9 +153,7 @@ class CapitalizationTableSerializer(serializers.ModelSerializer):
         try:
             return qs.get(id=event_id)
         except CapTableEvents.DoesNotExist as exc:
-            raise serializers.ValidationError(
-                {"event_id": "Event not found."}
-            ) from exc
+            raise serializers.ValidationError({"event_id": "Event not found."}) from exc
 
     def _get_shareholder(self, shareholder_id, company):
         request = self.context.get("request")
@@ -113,7 +167,9 @@ class CapitalizationTableSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data, **kwargs):
         event = self._get_event(validated_data.pop("event_id"))
-        shareholder = self._get_shareholder(validated_data.pop("shareholder_id"), event.company)
+        shareholder = self._get_shareholder(
+            validated_data.pop("shareholder_id"), event.company
+        )
         return CapitalizationTable.objects.create(
             company=event.company,
             event=event,
@@ -129,7 +185,9 @@ class CapitalizationTableSerializer(serializers.ModelSerializer):
             instance.event = self._get_event(event_id)
             instance.company = instance.event.company
         if shareholder_id:
-            instance.shareholder = self._get_shareholder(shareholder_id, instance.company)
+            instance.shareholder = self._get_shareholder(
+                shareholder_id, instance.company
+            )
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         for attr, value in kwargs.items():
@@ -215,7 +273,9 @@ class CapTableEventDetailSerializer(CapTableEventListSerializer):
         return list(summary.values())
 
 
-class CapTableEventSerializer(CompanyScopedSerializerMixin, serializers.ModelSerializer):
+class CapTableEventSerializer(
+    CompanyScopedSerializerMixin, serializers.ModelSerializer
+):
     company_id = serializers.UUIDField(write_only=True, required=False)
 
     class Meta:
@@ -246,5 +306,118 @@ class CapTableEventSerializer(CompanyScopedSerializerMixin, serializers.ModelSer
             company = self._get_company(company_id)
         if not company:
             raise serializers.ValidationError({"company_id": "Company is required."})
-        return CapTableEvents.objects.create(company=company, **validated_data, **kwargs)
+        return CapTableEvents.objects.create(
+            company=company, **validated_data, **kwargs
+        )
 
+
+class CapTableEventTransactionLineSerializer(serializers.Serializer):
+    shareholder_id = serializers.UUIDField()
+    share_class_type = serializers.ChoiceField(choices=ShareClassType.choices)
+    share_class_name = serializers.CharField(max_length=255)
+    shares_issued = serializers.DecimalField(max_digits=20, decimal_places=2)
+    price_per_share = serializers.DecimalField(max_digits=20, decimal_places=4)
+    lock_in_ends = serializers.DateField(required=False, allow_null=True)
+
+    def validate_shares_issued(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(
+                "Shares issued must be greater than zero."
+            )
+        return value
+
+    def validate_price_per_share(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(
+                "Price per share must be greater than zero."
+            )
+        return value
+
+
+class CapTableEventTransactionCreateSerializer(serializers.Serializer):
+    event = CapTableEventSerializer()
+    transactions = CapTableEventTransactionLineSerializer(many=True, allow_empty=False)
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        if not request:
+            raise serializers.ValidationError("Request context is required.")
+
+        event_data = attrs.get("event") or {}
+        event_serializer = CapTableEventSerializer(
+            data=event_data, context=self.context
+        )
+        event_serializer.is_valid(raise_exception=True)
+        self._event_serializer = event_serializer
+
+        share_price = event_serializer.validated_data.get("share_price")
+        if share_price is None:
+            raise serializers.ValidationError(
+                {"event": {"share_price": "Share price is required."}}
+            )
+
+        company = getattr(event_serializer, "_company", None)
+        if not company:
+            company_id = event_serializer.validated_data.get("company_id")
+            if company_id:
+                company = event_serializer._get_company(company_id)
+        if not company:
+            raise serializers.ValidationError(
+                {"event": {"company_id": "Company is required."}}
+            )
+
+        shareholder_cache = {}
+        enriched_transactions = []
+        for index, tx in enumerate(attrs["transactions"]):
+            shareholder_id = tx["shareholder_id"]
+            shareholder = shareholder_cache.get(shareholder_id)
+            if not shareholder:
+                try:
+                    shareholder = Shareholder.objects.get(
+                        id=shareholder_id, company=company, company__owner=request.user
+                    )
+                except Shareholder.DoesNotExist as exc:
+                    raise serializers.ValidationError(
+                        {
+                            "transactions": [
+                                f"Shareholder {shareholder_id} not found for this company."
+                            ]
+                        }
+                    ) from exc
+                shareholder_cache[shareholder_id] = shareholder
+
+            if tx["price_per_share"] != share_price:
+                raise serializers.ValidationError(
+                    {
+                        "transactions": [
+                            f"Line {index + 1}: price_per_share must equal the event share_price ({share_price})."
+                        ]
+                    }
+                )
+
+            enriched_transactions.append({**tx, "shareholder": shareholder})
+
+        attrs["transactions"] = enriched_transactions
+        return attrs
+
+    def save(self, **kwargs):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        event_serializer = getattr(self, "_event_serializer")
+        transaction_payloads = self.validated_data["transactions"]
+
+        with transaction.atomic():
+            event = event_serializer.save(created_by=user, updated_by=user)
+            created_transactions = []
+            for tx in transaction_payloads:
+                shareholder = tx.pop("shareholder")
+                row = CapitalizationTable.objects.create(
+                    company=event.company,
+                    event=event,
+                    shareholder=shareholder,
+                    created_by=user,
+                    updated_by=user,
+                    **tx,
+                )
+                created_transactions.append(row)
+        return event, created_transactions

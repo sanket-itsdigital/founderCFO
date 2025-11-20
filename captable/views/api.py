@@ -1,10 +1,10 @@
 from decimal import Decimal
 
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
 
 from accounts.models import Company
 from captable.models import (
@@ -16,8 +16,10 @@ from captable.models import (
 from captable.serializers import (
     CapTableEventDetailSerializer,
     CapTableEventDocumentSerializer,
+    CapTableEventDocumentUploadSerializer,
     CapTableEventListSerializer,
     CapTableEventSerializer,
+    CapTableEventTransactionCreateSerializer,
     CapitalizationTableSerializer,
     ShareholderSerializer,
 )
@@ -37,25 +39,30 @@ class CompanyScopedMixin:
         return filters
 
 
-class ShareholderViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+class ShareholderListCreateView(CompanyScopedMixin, generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ShareholderSerializer
 
     def get_queryset(self):
-        return Shareholder.objects.filter(
-            **self._company_filter()
-        ).order_by("name")
+        return Shareholder.objects.filter(**self._company_filter()).order_by("name")
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+
+class ShareholderDetailView(CompanyScopedMixin, generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ShareholderSerializer
+
+    def get_queryset(self):
+        return Shareholder.objects.filter(**self._company_filter()).order_by("name")
 
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
 
 
-class CapTableEventViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+class CapTableEventListCreateView(CompanyScopedMixin, generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = CapTableEventSerializer
 
     def get_queryset(self):
         return (
@@ -65,43 +72,86 @@ class CapTableEventViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
         )
 
     def get_serializer_class(self):
-        if self.action == "list":
+        if self.request.method.lower() == "get":
             return CapTableEventListSerializer
-        if self.action == "retrieve":
-            return CapTableEventDetailSerializer
-        if self.action == "upload_document":
-            return CapTableEventDocumentSerializer
         return CapTableEventSerializer
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
+
+class CapTableEventDetailView(
+    CompanyScopedMixin, generics.RetrieveUpdateDestroyAPIView
+):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            CapTableEvents.objects.filter(**self._company_filter())
+            .select_related("company")
+            .prefetch_related("documents", "transactions__shareholder")
+        )
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "get":
+            return CapTableEventDetailSerializer
+        return CapTableEventSerializer
+
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
 
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="documents",
-        permission_classes=[IsAuthenticated],
-    )
-    def upload_document(self, request, pk=None):
-        event = self.get_object()
-        serializer = CapTableEventDocumentSerializer(
-            data=request.data, context=self.get_serializer_context()
+
+class CapTableEventDocumentView(CompanyScopedMixin, APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_event(self, pk):
+        filters = self._company_filter()
+        event = get_object_or_404(CapTableEvents, pk=pk, **filters)
+        return event
+
+    def post(self, request, pk):
+        event = self._get_event(pk)
+        data = request.data.copy()
+        files = request.FILES.getlist("files")
+        if files:
+            data.setlist("files", files)
+        single_file = request.FILES.get("file")
+        if single_file:
+            data["file"] = single_file
+        serializer = CapTableEventDocumentUploadSerializer(
+            data=data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save(event=event, created_by=request.user, updated_by=request.user)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        documents = serializer.save(event=event, user=request.user)
+        response_serializer = CapTableEventDocumentSerializer(documents, many=True)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
-    @upload_document.mapping.get
-    def list_documents(self, request, pk=None):
-        event = self.get_object()
+    def get(self, request, pk):
+        event = self._get_event(pk)
         serializer = CapTableEventDocumentSerializer(event.documents.all(), many=True)
         return Response(serializer.data)
 
 
-class CapitalizationTableViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+class CapitalizationTableListCreateView(CompanyScopedMixin, generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CapitalizationTableSerializer
+
+    def get_queryset(self):
+        queryset = CapitalizationTable.objects.filter(
+            **self._company_filter()
+        ).select_related("event", "shareholder", "company")
+        event_id = self.request.query_params.get("event_id")
+        if event_id:
+            queryset = queryset.filter(event_id=event_id)
+        return queryset.order_by("-event__date", "-created_at")
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+
+class CapitalizationTableDetailView(
+    CompanyScopedMixin, generics.RetrieveUpdateDestroyAPIView
+):
     permission_classes = [IsAuthenticated]
     serializer_class = CapitalizationTableSerializer
 
@@ -111,9 +161,6 @@ class CapitalizationTableViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
             .select_related("event", "shareholder", "company")
             .order_by("-event__date", "-created_at")
         )
-
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
@@ -162,7 +209,9 @@ class CapTableSummaryView(APIView):
         for data in summary.values():
             shares = data["total_shares"]
             ownership = (
-                (shares / total_shares) * Decimal("100") if total_shares else Decimal("0")
+                (shares / total_shares) * Decimal("100")
+                if total_shares
+                else Decimal("0")
             )
             shareholder_rows.append(
                 {
@@ -179,3 +228,64 @@ class CapTableSummaryView(APIView):
             }
         )
 
+
+class ShareHolderListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        company_id = request.query_params.get("company_id")
+        if not company_id:
+            return Response({"detail": "company_id is required"}, status=400)
+        try:
+            company = Company.objects.get(id=company_id, owner=request.user)
+        except Company.DoesNotExist:
+            return Response({"detail": "Company not found"}, status=404)
+
+        shareholders = Shareholder.objects.filter(company=company).order_by("name")
+        serializer = ShareholderSerializer(shareholders, many=True)
+        return Response(serializer.data)
+
+
+class CapTableEventTransactionCreateView(CompanyScopedMixin, APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_queryset(self):
+        return (
+            CapTableEvents.objects.filter(**self._company_filter())
+            .select_related("company")
+            .prefetch_related("documents", "transactions__shareholder")
+            .order_by("-date")
+        )
+
+    def get(self, request):
+        queryset = self._get_queryset()
+        serializer = CapTableEventDetailSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = CapTableEventTransactionCreateSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        event, transactions = serializer.save()
+        event_data = CapTableEventDetailSerializer(event).data
+        tx_data = CapitalizationTableSerializer(transactions, many=True).data
+        return Response(
+            {
+                "event": event_data,
+                "transactions": tx_data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CapTableEventTransactionDetailView(CompanyScopedMixin, generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CapTableEventDetailSerializer
+
+    def get_queryset(self):
+        return (
+            CapTableEvents.objects.filter(**self._company_filter())
+            .select_related("company")
+            .prefetch_related("documents", "transactions__shareholder")
+        )

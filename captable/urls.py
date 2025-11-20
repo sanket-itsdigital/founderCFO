@@ -1,23 +1,63 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 
 from captable.views.api import (
-    CapTableEventViewSet,
+    CapTableEventDetailView,
+    CapTableEventDocumentView,
+    CapTableEventListCreateView,
+    CapTableEventTransactionCreateView,
+    CapTableEventTransactionDetailView,
     CapTableSummaryView,
-    CapitalizationTableViewSet,
-    ShareholderViewSet,
+    CapitalizationTableDetailView,
+    CapitalizationTableListCreateView,
+    ShareHolderListView,
+    ShareholderDetailView,
+    ShareholderListCreateView,
 )
 
 app_name = "captable"
 
-router = DefaultRouter()
-router.register("events", CapTableEventViewSet, basename="captable-events")
-router.register("shareholders", ShareholderViewSet, basename="captable-shareholders")
-router.register(
-    "transactions", CapitalizationTableViewSet, basename="captable-transactions"
-)
-
 urlpatterns = [
-    path("", include(router.urls)),
+    path("events/", CapTableEventListCreateView.as_view(), name="captable-events-list"),
+    path(
+        "events/<uuid:pk>/",
+        CapTableEventDetailView.as_view(),
+        name="captable-events-detail",
+    ),
+    path(
+        "events/<uuid:pk>/documents/",
+        CapTableEventDocumentView.as_view(),
+        name="captable-events-documents",
+    ),
+    path(
+        "events/transactions/",
+        CapTableEventTransactionCreateView.as_view(),
+        name="captable-events-transactions",
+    ),
+    path(
+        "events/transactions/<uuid:pk>/",
+        CapTableEventTransactionDetailView.as_view(),
+        name="captable-events-transactions-detail",
+    ),
+    path(
+        "shareholders/",
+        ShareholderListCreateView.as_view(),
+        name="captable-shareholders-list",
+    ),
+    path(
+        "shareholders/<uuid:pk>/",
+        ShareholderDetailView.as_view(),
+        name="captable-shareholders-detail",
+    ),
+    path(
+        "transactions/",
+        CapitalizationTableListCreateView.as_view(),
+        name="captable-transactions-list",
+    ),
+    path(
+        "transactions/<uuid:pk>/",
+        CapitalizationTableDetailView.as_view(),
+        name="captable-transactions-detail",
+    ),
     path("summary/", CapTableSummaryView.as_view(), name="summary"),
+    path("shareholders-list/", ShareHolderListView.as_view(), name="shareholder-list"),
 ]
