@@ -7,6 +7,7 @@ from .auth import (
     ResetPasswordSerializer,
     UserProfileSerializer,
 )
+from .token import UserTokenObtainPairSerializer
 
 __all__ = [
     "CompanySerializer",
@@ -16,4 +17,5 @@ __all__ = [
     "ForgotPasswordSerializer",
     "ResetPasswordSerializer",
     "UserProfileSerializer",
+    "UserTokenObtainPairSerializer",
 ]

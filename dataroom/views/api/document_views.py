@@ -104,6 +104,7 @@ class DocumentDownloadView(generics.RetrieveAPIView):
     """
 
     queryset = Document.objects.all()
+    serializer_class = DocumentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def retrieve(self, request, *args, **kwargs):

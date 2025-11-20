@@ -7,6 +7,7 @@ from accounts.views.api.company.team_views import (
     TeamMemberDetailView,
     TeamMemberListCreateView,
 )
+from accounts.views.api.user_info import UserInfoAPIView
 from dataroom.admin_views import login_admin, logout_page, user_profile
 
 urlpatterns = [
@@ -29,4 +30,5 @@ urlpatterns = [
         TeamMemberDetailView.as_view(),
         name="team-member-detail",
     ),
+    path("user-info/", UserInfoAPIView.as_view(), name="user-info"),
 ]

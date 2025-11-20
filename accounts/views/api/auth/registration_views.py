@@ -1,12 +1,14 @@
-from rest_framework.response import Response
+from django.db import transaction
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
-from django.db import transaction
-from accounts.serializers import RegisterUserSerializer
-from rest_framework.views import APIView
+from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
+from rest_framework.views import APIView
 
+from accounts.serializers import RegisterUserSerializer
 from backend.utils import token_validation
 
 class SignupView(CreateAPIView):
@@ -17,6 +19,16 @@ class SignupView(CreateAPIView):
     permission_classes = [AllowAny]
     serializer_class = RegisterUserSerializer
 
+    @swagger_auto_schema(
+        operation_summary="Register a new user",
+        request_body=RegisterUserSerializer,
+        responses={
+            200: openapi.Response(
+                description="Registration successful",
+                examples={"application/json": {"message": "Registration successful. Thank you for joining us."}},
+            )
+        },
+    )
     def post(self, request):
         """
         Handle user sign-up request.
