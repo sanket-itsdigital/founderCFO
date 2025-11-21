@@ -8,6 +8,7 @@ from accounts.views.api.company.team_views import (
     TeamMemberListCreateView,
 )
 from accounts.views.api.user_info import UserInfoAPIView
+from captable.views.api import CompanyInfoView
 from dataroom.admin_views import login_admin, logout_page, user_profile
 
 urlpatterns = [
@@ -31,4 +32,5 @@ urlpatterns = [
         name="team-member-detail",
     ),
     path("user-info/", UserInfoAPIView.as_view(), name="user-info"),
+    path("company/", CompanyInfoView.as_view(), name="company-info"),
 ]

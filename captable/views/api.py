@@ -1,12 +1,14 @@
 from decimal import Decimal
 
+from django.db.models import Q
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 
-from accounts.models import Company
+from accounts.models import Company, TeamMember
+from accounts.serializers.company import CompanySerializer
 from captable.models import (
     CapTableEventDocument,
     CapTableEvents,
@@ -243,6 +245,27 @@ class ShareHolderListView(APIView):
 
         shareholders = Shareholder.objects.filter(company=company).order_by("name")
         serializer = ShareholderSerializer(shareholders, many=True)
+        return Response(serializer.data)
+
+
+class CompanyInfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        company_qs = (
+            Company.objects.filter(
+                Q(owner=request.user)
+                | Q(team_members__user=request.user, team_members__is_active=True)
+            )
+            .distinct()
+            .order_by("name")
+        )
+        company_id = request.query_params.get("company_id")
+        if company_id:
+            company = get_object_or_404(company_qs, id=company_id)
+            serializer = CompanySerializer(company)
+            return Response(serializer.data)
+        serializer = CompanySerializer(company_qs, many=True)
         return Response(serializer.data)
 
 
