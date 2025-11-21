@@ -6,12 +6,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.views import APIView
-
+from rest_framework.generics import UpdateAPIView
 from accounts.serializers import (
     LogoutSerializer,
     UserProfileSerializer,
     UserTokenObtainPairSerializer,
 )
+from accounts.serializers.auth import ChangePasswordSerializer
 from backend.enums import UserRoleChoices, VerificationStatusChoices
 
 
@@ -159,3 +160,37 @@ class ProfileAPIView(APIView):
     )
     def put(self, request):
         return self.patch(request)
+
+
+class ChangePasswordAPIView(UpdateAPIView):
+    """
+    API view for changing the user's password.
+    """
+
+    http_method_names = ["patch"]
+    # Serializer class for handling password change
+    serializer_class = ChangePasswordSerializer
+
+    # Permission class to ensure user is authenticated
+    permission_classes = (IsAuthenticated,)
+
+    def update(self, request, *args, **kwargs):
+        """
+        Handle password change request.
+
+        Args:
+            request: HTTP request object.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Response indicating success or failure of password change.
+        """
+
+        serializer = self.get_serializer(data=request.data)  # Get serializer instance
+        serializer.is_valid(raise_exception=True)  # Validate the serializer data
+        serializer.save()  # Save the updated password
+        return generic_response(
+            status_code=status.HTTP_200_OK,
+            message="Password changed successfully.",
+        )
