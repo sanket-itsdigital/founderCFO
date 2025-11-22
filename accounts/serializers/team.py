@@ -72,12 +72,12 @@ class TeamMemberCreateSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id",)
 
-    def validate_role(self, value):
-        if value == UserRoleChoices.FOUNDER:
-            raise serializers.ValidationError(
-                "Founder role cannot be assigned to a team member."
-            )
-        return value
+    # def validate_role(self, value):
+    #     if value == UserRoleChoices.FOUNDER:
+    #         raise serializers.ValidationError(
+    #             "Founder role cannot be assigned to a team member."
+    #         )
+    #     return value
 
     def validate(self, attrs):
         company = self.context.get("company")
