@@ -2,7 +2,11 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.contrib.auth.base_user import BaseUserManager
 
-from backend.enums import UserRoleChoices, VerificationStatusChoices
+from backend.enums import (
+    NatureOfBusinessChoices,
+    UserRoleChoices,
+    VerificationStatusChoices,
+)
 from backend.models import BaseModel
 
 
@@ -96,7 +100,11 @@ class Company(BaseModel):
     GST_number = models.CharField(max_length=15, unique=True)
     address = models.TextField()
     no_of_employees = models.PositiveIntegerField()
-    nature_of_business = models.CharField(max_length=100)
+    nature_of_business = models.CharField(
+        max_length=100,
+        choices=NatureOfBusinessChoices.choices,
+        default=NatureOfBusinessChoices.SAAS,
+    )
 
     def __str__(self):
         return self.name

@@ -74,3 +74,9 @@ class ActNameChoices(TextChoices):
     SEBI_LODR = "SEBI (LODR)", "SEBI (LODR)"
     SEBI = "SEBI", "SEBI"
     MSME_ACT = "MSME Act", "MSME Act"
+    
+class NatureOfBusinessChoices(TextChoices):
+    SAAS = "SaaS", "SaaS"
+    ECOMMERCE = "Ecommerce", "Ecommerce"
+    SERVICES_PROVIDER = "Services Provider", "Services Provider"
+    MANUFACTURER = "Manufacturer", "Manufacturer"
