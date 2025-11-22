@@ -31,14 +31,14 @@ class TeamMemberSerializer(serializers.ModelSerializer):
 class TeamMemberCreateSerializer(serializers.ModelSerializer):
     """Serializer used when founders add a new team member."""
 
-    first_name = serializers.CharField(write_only=True, max_length=30)
-    middle_name = serializers.CharField(
-        write_only=True,
-        max_length=30,
-        allow_blank=True,
-        required=False,
-    )
-    last_name = serializers.CharField(write_only=True, max_length=30)
+    # first_name = serializers.CharField(write_only=True, max_length=30)
+    # middle_name = serializers.CharField(
+    #     write_only=True,
+    #     max_length=30,
+    #     allow_blank=True,
+    #     required=False,
+    # )
+    # last_name = serializers.CharField(write_only=True, max_length=30)
     email = serializers.EmailField(write_only=True)
     mobile_number = serializers.CharField(
         write_only=True,
@@ -62,9 +62,9 @@ class TeamMemberCreateSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "role",
-            "first_name",
-            "middle_name",
-            "last_name",
+            # "first_name",
+            # "middle_name",
+            # "last_name",
             "email",
             "mobile_number",
             "profile_image",
@@ -121,9 +121,9 @@ class TeamMemberCreateSerializer(serializers.ModelSerializer):
         raw_password = validated_data.pop("password")
 
         user_defaults = {
-            "first_name": validated_data.pop("first_name"),
-            "middle_name": validated_data.pop("middle_name", None),
-            "last_name": validated_data.pop("last_name"),
+            # "first_name": validated_data.pop("first_name"),
+            # "middle_name": validated_data.pop("middle_name", None),
+            # "last_name": validated_data.pop("last_name"),
             "role": validated_data["role"],
         }
         if mobile_number:
