@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
-from accounts.serializers import RegisterUserSerializer
+from accounts.serializers import RegisterUserSerializer, UserTokenObtainPairSerializer
 from backend.utils import token_validation
 
 class SignupView(CreateAPIView):
@@ -23,9 +23,17 @@ class SignupView(CreateAPIView):
         operation_summary="Register a new user",
         request_body=RegisterUserSerializer,
         responses={
-            200: openapi.Response(
-                description="Registration successful",
-                examples={"application/json": {"message": "Registration successful. Thank you for joining us."}},
+            201: openapi.Response(
+                description="Registration successful with tokens",
+                examples={
+                    "application/json": {
+                        "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                        "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                        "role": "Founder",
+                        "company_id": None,
+                        "message": "Registration successful. Thank you for joining us.",
+                    }
+                },
             )
         },
     )
@@ -37,7 +45,7 @@ class SignupView(CreateAPIView):
             request: HTTP request object.
 
         Returns:
-            Response indicating success or failure of user sign-up.
+            Response with tokens and success message.
         """
 
         # validate the incoming data
@@ -48,11 +56,22 @@ class SignupView(CreateAPIView):
             user = serializer.save()
             user.save()
 
+        # Generate tokens for the newly created user
+        refresh = UserTokenObtainPairSerializer.get_token(user)
+        
+        # Get user role and company info
+        from accounts.utils import get_user_company
+        company = get_user_company(user)
+        
         return Response(
             data={
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "role": user.role,
+                "company_id": str(company.id) if company else None,
                 "message": "Registration successful. Thank you for joining us.",
             },
-            status=status.HTTP_200_OK,
+            status=status.HTTP_201_CREATED,
         )
 
 
