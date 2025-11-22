@@ -57,10 +57,10 @@ class CompanyStatusChoices(TextChoices):
     DAILY = "Daily", "Daily"
     
 class ComplianceStatusChoices(TextChoices):
-    AUTO = "Auto", "Auto"
     OVERDUE = "Overdue", "Overdue"
     COMPLETED = "Completed", "Completed"
     PENDING = "Pending", "Pending"
+    IN_PROGRESS = "In Progress", "In Progress"
     
 
 class ActNameChoices(TextChoices):
