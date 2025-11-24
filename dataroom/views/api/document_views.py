@@ -1,15 +1,21 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework.decorators import action
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 
-from dataroom.models import Document, DocumentVersion, Folder, AccessLog
+from dataroom.models import (
+    Document,
+    DocumentVersion,
+    Folder,
+    AccessLog,
+    CompanyFolderSelection,
+)
 from dataroom.serializers import (
     DocumentSerializer,
     DocumentCreateSerializer,
     DocumentVersionSerializer,
     VersionCompareSerializer,
+    DocumentListItemSerializer,
 )
 from dataroom.utils import log_api_access
 
@@ -74,6 +80,53 @@ class DocumentListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+
+class CurrentCompanyDocumentListView(generics.ListAPIView):
+    """
+    Lightweight document list (id, name) scoped to the request user's company.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = DocumentListItemSerializer
+
+    def _get_company(self):
+        company_id = self.request.query_params.get("company_id")
+        if company_id:
+            return company_id
+        if hasattr(self.request.user, "companies"):
+            company = self.request.user.companies.first()
+            if company:
+                return str(company.id)
+        return None
+
+    def list(self, request, *args, **kwargs):
+        self.company_id = self._get_company()
+        if not self.company_id:
+            return Response(
+                {"detail": "No company found for this user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        company_id = getattr(self, "company_id", None) or self._get_company()
+        if not company_id:
+            return Document.objects.none()
+
+        queryset = Document.objects.filter(company_id=company_id)
+
+        if not self.request.user.is_superuser:
+            selected_folder_ids = CompanyFolderSelection.objects.filter(
+                company_id=company_id
+            ).values_list("folder_id", flat=True)
+            queryset = queryset.filter(folder_id__in=selected_folder_ids)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+
+        return queryset.order_by("name").only("id", "name")
 
 
 class DocumentRetrieveUpdateView(generics.RetrieveUpdateAPIView):

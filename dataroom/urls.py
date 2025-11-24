@@ -24,6 +24,7 @@ from dataroom.views.api.document_views import (
     FolderDocumentsView,
     DocumentVersionListCreateView,
     VersionCompareView,
+    CurrentCompanyDocumentListView,
 )
 from dataroom.views.api.qa_views import (
     QuestionListCreateView,
@@ -53,6 +54,11 @@ urlpatterns = [
         name="folder-documents",
     ),
     path("documents/", DocumentListCreateView.as_view(), name="documents"),
+    path(
+        "documents/current-company/",
+        CurrentCompanyDocumentListView.as_view(),
+        name="documents-current-company",
+    ),
     path(
         "documents/<uuid:pk>/",
         DocumentRetrieveUpdateView.as_view(),

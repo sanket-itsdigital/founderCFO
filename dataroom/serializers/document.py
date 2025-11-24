@@ -69,3 +69,11 @@ class DocumentCreateSerializer(serializers.ModelSerializer):
             created_by=validated_data.get("created_by"),
         )
         return document
+
+
+class DocumentListItemSerializer(serializers.ModelSerializer):
+    """Minimal document representation for dropdowns/lists."""
+
+    class Meta:
+        model = Document
+        fields = ["id", "name"]
