@@ -238,6 +238,8 @@ class ShareHolderListView(APIView):
         company_id = request.query_params.get("company_id")
         if not company_id:
             return Response({"detail": "company_id is required"}, status=400)
+        if not company_id:
+            return Response({"detail": "company_id is required"}, status=400)
         try:
             company = Company.objects.get(id=company_id, owner=request.user)
         except Company.DoesNotExist:
