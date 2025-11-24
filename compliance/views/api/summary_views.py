@@ -38,7 +38,7 @@ class ActWiseSummaryView(APIView):
             total_tasks = act_tasks.count()
             completed = act_tasks.filter(status=ComplianceStatusChoices.COMPLETED).count()
             pending = act_tasks.filter(status=ComplianceStatusChoices.PENDING).count()
-            in_progress = act_tasks.filter(status=ComplianceStatusChoices.AUTO).count()
+            in_progress = act_tasks.filter(status=ComplianceStatusChoices.IN_PROGRESS).count()
             overdue = act_tasks.filter(is_overdue=True).count()
             
             # Critical tasks (assuming severity='critical' or 'high')

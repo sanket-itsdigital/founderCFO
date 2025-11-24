@@ -32,7 +32,7 @@ class ComplianceDashboardView(APIView):
         pending_tasks = all_tasks.filter(
             status=ComplianceStatusChoices.PENDING
         ).count()
-        in_progress = all_tasks.filter(status=ComplianceStatusChoices.AUTO).count()
+        in_progress = all_tasks.filter(status=ComplianceStatusChoices.IN_PROGRESS).count()
         overdue_tasks = all_tasks.filter(is_overdue=True).count()
         
         # Critical tasks

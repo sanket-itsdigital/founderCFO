@@ -72,12 +72,12 @@ class ComplianceTaskMaster(BaseModel):
                 return ComplianceStatusChoices.OVERDUE
 
         # If due_date is today or in the future, check if it's within reminder days
-        # If within reminder period, status could be AUTO (for automatic reminders)
+        # If within reminder period, mark as IN_PROGRESS (needs imminent attention)
         if self.due_date:
             today = timezone.now().date()
             days_until = (self.due_date - today).days
             if 0 <= days_until <= self.reminder_days:
-                return ComplianceStatusChoices.AUTO
+                return ComplianceStatusChoices.IN_PROGRESS
 
         # Default to PENDING
         return ComplianceStatusChoices.PENDING
