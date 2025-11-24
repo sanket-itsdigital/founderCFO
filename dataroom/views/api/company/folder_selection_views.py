@@ -52,6 +52,11 @@ class CompanyFolderSelectionView(APIView):
             )
 
         folder_ids = request.data.get("folder_ids", [])
+        if not folder_ids:
+            return Response(
+                {"detail": "No folder_ids provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not isinstance(folder_ids, list):
             return Response(
                 {"detail": "folder_ids must be a list."},

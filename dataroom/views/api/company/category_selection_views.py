@@ -164,8 +164,14 @@ class CompanyCategorySelectionView(APIView):
                 {"detail": "No company found for this user."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
 
         category_ids = request.data.get("category_ids", [])
+        if not category_ids:
+            return Response(
+                {"detail": "No category_ids provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not isinstance(category_ids, list):
             return Response(
                 {"detail": "category_ids must be a list."},
@@ -243,6 +249,7 @@ class CompanyCategorySelectionView(APIView):
 class CompanySelectedCategoriesListView(generics.ListAPIView):
     """
     List categories selected by the company.
+    Optional query parameter: folder_id - Filter categories by folder
     """
 
     serializer_class = CompanyCategorySelectionSerializer
@@ -252,9 +259,15 @@ class CompanySelectedCategoriesListView(generics.ListAPIView):
         if hasattr(self.request.user, "companies"):
             company = self.request.user.companies.first()
             if company:
-                return (
+                queryset = (
                     CompanyCategorySelection.objects.filter(company=company)
                     .select_related("category", "category__folder")
-                    .order_by("-selected_at")
                 )
+                
+                # Filter by folder_id if provided in query parameters
+                folder_id = self.request.query_params.get("folder_id")
+                if folder_id:
+                    queryset = queryset.filter(category__folder_id=folder_id)
+                
+                return queryset.order_by("-selected_at")
         return CompanyCategorySelection.objects.none()
