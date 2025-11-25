@@ -9,7 +9,9 @@ class ComplianceTaskMasterSerializer(serializers.ModelSerializer):
     reminder_days = serializers.IntegerField(read_only=True)
     days_until_due = serializers.IntegerField(read_only=True)
     is_overdue = serializers.BooleanField(read_only=True)
-    
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    updated_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = ComplianceTaskMaster
         fields = [
@@ -39,18 +41,23 @@ class ComplianceTaskMasterSerializer(serializers.ModelSerializer):
             "penalty",
             "late_fee",
             "interest_amount",
+            "is_admin_created",
+            "created_by",
+            "updated_by",
             "created_at",
             "updated_at",
         ]
         read_only_fields = [
-            "id", 
-            "task_id", 
+            "id",
+            "task_id",
             "status",
             "next_due_date",
             "reminder_days",
             "days_until_due",
             "is_overdue",
-            "created_at", 
-            "updated_at"
+            "is_admin_created",
+            "created_by",
+            "updated_by",
+            "created_at",
+            "updated_at",
         ]
-
