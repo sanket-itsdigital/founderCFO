@@ -2,37 +2,10 @@ from django.db.models import TextChoices
 
 
 class Frequency(TextChoices):
-    ANNUALLY = "Annually", "Annually"
-    EVENT_BASED = "Event-based", "Event-based"
-    CONTINUOUS = "Continuous", "Continuous"
-    EVERY_MONTH_APRIL_MARCH = (
-        "Every Month (April - March)",
-        "Every Month (April - March)",
-    )
+    MONTHLY = "Monthly", "Monthly"
     QUARTERLY = "Quarterly", "Quarterly"
     HALF_YEARLY = "Half-yearly", "Half-yearly"
-    QUARTERLY_END = (
-        "Quarterly (End of each quarter)",
-        "Quarterly (End of each quarter)",
-    )
-    QUARTERLY_TDS = "Quarterly (TDS certificate)", "Quarterly (TDS certificate)"
-    MONTHLY_QUARTERLY_TDS = (
-        "Monthly / Quarterly (TDS)",
-        "Monthly / Quarterly (TDS)",
-    )
-    EVENT_BASED_AS_REQUIRED = (
-        "Event-based / As required",
-        "Event-based / As required",
-    )
-    MONTHLY_STATUTORY = (
-        "Monthly (for statutory payments like TDS, GST, advance tax, etc.)",
-        "Monthly (for statutory payments like TDS, GST, advance tax, etc.)",
-    )
-    MONTHLY_PF_ESI = (
-        "Monthly (for PF/ESI contributions)",
-        "Monthly (for PF/ESI contributions)",
-    )
-    ANNUAL = "Annual", "Annual"
+    ANNUALLY = "Annually", "Annually"
 
 
 class ConsequencesType(TextChoices):
@@ -360,63 +333,63 @@ class ParticularsType(TextChoices):
         "Various / Form 27D-SEBI filings, TCS Certificate",
     )
 
+
 class CompanyType(TextChoices):
     PRIVATE_LIMITED = "Private Limited", "Private Limited"
     PUBLIC_LIMITED = "Public Limited", "Public Limited"
     LLP = "LLP", "LLP"
 
 
-
 class PenaltyAmount(TextChoices):
     LATE_FEE_100_PER_DAY_PENALTY_10K_5L = (
         "Int - NA - Late Fees - ₹100 per day - Penalty - ₹10,000 – ₹5 lakh",
-        "Int - NA - Late Fees - ₹100 per day - Penalty - ₹10,000 – ₹5 lakh"
+        "Int - NA - Late Fees - ₹100 per day - Penalty - ₹10,000 – ₹5 lakh",
     )
     LATE_FEE_5000_PER_DIN = (
         "Int - NA - Late Fees - NA - Penalty - ₹5,000 per DIN",
-        "Int - NA - Late Fees - NA - Penalty - ₹5,000 per DIN"
+        "Int - NA - Late Fees - NA - Penalty - ₹5,000 per DIN",
     )
     LATE_FEE_25K_5L = (
         "Int - NA - Late Fees - ₹100 per day - Penalty - ₹25,000 – ₹5 lakh",
-        "Int - NA - Late Fees - ₹100 per day - Penalty - ₹25,000 – ₹5 lakh"
+        "Int - NA - Late Fees - ₹100 per day - Penalty - ₹25,000 – ₹5 lakh",
     )
     NO_UPPER_LIMIT_PENALTY = (
         "Int - NA - Late Fees - ₹100 per day - Penalty - No upper limit",
-        "Int - NA - Late Fees - ₹100 per day - Penalty - No upper limit"
+        "Int - NA - Late Fees - ₹100 per day - Penalty - No upper limit",
     )
     PENALTY_1L_5L = (
         "Int - NA - Late Fees - NA - Penalty - ₹1 lakh – ₹5 lakh",
-        "Int - NA - Late Fees - NA - Penalty - ₹1 lakh – ₹5 lakh"
+        "Int - NA - Late Fees - NA - Penalty - ₹1 lakh – ₹5 lakh",
     )
     INT_18_PERCENT_TAX_PAYABLE_LATE_FEE_50_DAY = (
         "Int - 18 % p.a. on tax payable u/s 50 - Late Fees - ₹50 / day (₹25 CGST + ₹25 SGST); ₹20 / day for NIL - Penalty - Up to ₹5,000 u/s 47",
-        "Int - 18 % p.a. on tax payable u/s 50 - Late Fees - ₹50 / day (₹25 CGST + ₹25 SGST); ₹20 / day for NIL - Penalty - Up to ₹5,000 u/s 47"
+        "Int - 18 % p.a. on tax payable u/s 50 - Late Fees - ₹50 / day (₹25 CGST + ₹25 SGST); ₹20 / day for NIL - Penalty - Up to ₹5,000 u/s 47",
     )
     INT_18_PERCENT_PENALTY_5000 = (
         "Int - 18 % p.a. - Late Fees - ₹50 / day (₹20 NIL) - Penalty - Up to ₹5,000",
-        "Int - 18 % p.a. - Late Fees - ₹50 / day (₹20 NIL) - Penalty - Up to ₹5,000"
+        "Int - 18 % p.a. - Late Fees - ₹50 / day (₹20 NIL) - Penalty - Up to ₹5,000",
     )
     INT_18_PERCENT_ON_TDS = (
         "Int - 18 % p.a. on TDS amount - Late Fees - ₹50 / day (₹20 NIL) - Penalty - 10 % of TDS not paid or ₹10k (min)",
-        "Int - 18 % p.a. on TDS amount - Late Fees - ₹50 / day (₹20 NIL) - Penalty - 10 % of TDS not paid or ₹10k (min)"
+        "Int - 18 % p.a. on TDS amount - Late Fees - ₹50 / day (₹20 NIL) - Penalty - 10 % of TDS not paid or ₹10k (min)",
     )
     LATE_FEE_100_DAY_272A = (
         "Int - NA - Late Fees - ₹100/day delay (u/s 272A(2)(g)) - Penalty - ₹10k–₹1 lakh",
-        "Int - NA - Late Fees - ₹100/day delay (u/s 272A(2)(g)) - Penalty - ₹10k–₹1 lakh"
+        "Int - NA - Late Fees - ₹100/day delay (u/s 272A(2)(g)) - Penalty - ₹10k–₹1 lakh",
     )
     INT_12_PERCENT_PENALTY_PROSECUTION_85 = (
         "Int - 12% p.a. (Sec 39 (5)(a)) - Late Fees - 5%–25% p.a. (Reg 31-C) - Penalty - Prosecution u/s 85; damages up to 25% of arrears",
-        "Int - 12% p.a. (Sec 39 (5)(a)) - Late Fees - 5%–25% p.a. (Reg 31-C) - Penalty - Prosecution u/s 85; damages up to 25% of arrears"
+        "Int - 12% p.a. (Sec 39 (5)(a)) - Late Fees - 5%–25% p.a. (Reg 31-C) - Penalty - Prosecution u/s 85; damages up to 25% of arrears",
     )
     PENALTY_FEMA_COMPOUNDING = (
         "Int - NA - Late Fees - Up to ₹2 lakh or thrice the amount involved (FEMA) - Penalty - Compounding penalty up to ₹10,000 per contravention, and if continuing, ₹2,000 per day after the first day (Sec 13, FEMA 1999).",
-        "Int - NA - Late Fees - Up to ₹2 lakh or thrice the amount involved (FEMA) - Penalty - Compounding penalty up to ₹10,000 per contravention, and if continuing, ₹2,000 per day after the first day (Sec 13, FEMA 1999)."
+        "Int - NA - Late Fees - Up to ₹2 lakh or thrice the amount involved (FEMA) - Penalty - Compounding penalty up to ₹10,000 per contravention, and if continuing, ₹2,000 per day after the first day (Sec 13, FEMA 1999).",
     )
     SEBI_NATCS_1_PERCENT = (
         "Int - SEBI – NATCS – 1% per month (u/s 206C) - Late Fees - SEBI – ₹1,000 per dayTCS – ₹200 per day (u/s 234E) - Penalty - SEBI: ₹1 lakh per day or up to ₹1 crore. Income Tax: ₹100 per day under Sec 272A(2)(k).",
-        "Int - SEBI – NATCS – 1% per month (u/s 206C) - Late Fees - SEBI – ₹1,000 per dayTCS – ₹200 per day (u/s 234E) - Penalty - SEBI: ₹1 lakh per day or up to ₹1 crore. Income Tax: ₹100 per day under Sec 272A(2)(k)."
+        "Int - SEBI – NATCS – 1% per month (u/s 206C) - Late Fees - SEBI – ₹1,000 per dayTCS – ₹200 per day (u/s 234E) - Penalty - SEBI: ₹1 lakh per day or up to ₹1 crore. Income Tax: ₹100 per day under Sec 272A(2)(k).",
     )
     TAX_AUDIT_TCS_1_PERCENT = (
         "Int - Tax Audit – 1% per month (u/s 234A/B/C)TCS – 1% per month (u/s 206C) - Late Fees - Tax Audit – ₹1.5 lakh or 0.5% of turnover (u/s 271B)SEBI – ₹1,000 per dayTCS – ₹200 per day (u/s 234E) - Penalty - Tax Audit (Sec 271B): 0.5% of turnover (max ₹1,50,000). SEBI: ₹1 lakh per day or up to ₹1 crore.",
-        "Int - Tax Audit – 1% per month (u/s 234A/B/C)TCS – 1% per month (u/s 206C) - Late Fees - Tax Audit – ₹1.5 lakh or 0.5% of turnover (u/s 271B)SEBI – ₹1,000 per dayTCS – ₹200 per day (u/s 234E) - Penalty - Tax Audit (Sec 271B): 0.5% of turnover (max ₹1,50,000). SEBI: ₹1 lakh per day or up to ₹1 crore."
+        "Int - Tax Audit – 1% per month (u/s 234A/B/C)TCS – 1% per month (u/s 206C) - Late Fees - Tax Audit – ₹1.5 lakh or 0.5% of turnover (u/s 271B)SEBI – ₹1,000 per dayTCS – ₹200 per day (u/s 234E) - Penalty - Tax Audit (Sec 271B): 0.5% of turnover (max ₹1,50,000). SEBI: ₹1 lakh per day or up to ₹1 crore.",
     )
