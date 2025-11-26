@@ -1,0 +1,23 @@
+{% extends "admin/base_site.html" %} {% load i18n %} {% block content %}
+<div id="content-main" class="module aligned">
+  <h1>{% trans "Import Compliance Tasks" %}</h1>
+  <p>
+    {% blocktrans %} Upload the Excel workbook that contains the "{{ sheet_name
+    }}" sheet. Only the following row numbers will be processed: {{
+    allowed_rows|join:", " }}. {% endblocktrans %}
+  </p>
+
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <table>
+      {{ form.as_table }}
+    </table>
+    <div class="submit-row">
+      <input type="submit" class="default" value="{% trans 'Import' %}" />
+      <a href="{{ changelist_url }}" class="button cancel-link"
+        >{% trans "Cancel" %}</a
+      >
+    </div>
+  </form>
+</div>
+{% endblock %}
