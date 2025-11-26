@@ -1,12 +1,22 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.shortcuts import redirect, render
+from django.urls import path, reverse
 
+from compliance.forms import ComplianceTaskImportForm
 from compliance.models import ComplianceTaskMaster, CompliancePayments
+from compliance.services.import_tasks import (
+    ALLOWED_ROW_NUMBERS,
+    SHEET_NAME,
+    TaskImportError,
+    import_compliance_tasks_from_excel,
+)
 
 # Register your models here.
 
 
 @admin.register(ComplianceTaskMaster)
 class ComplianceTaskMasterAdmin(admin.ModelAdmin):
+    change_list_template = "admin/compliance/compliancetaskmaster/change_list.html"
     list_display = (
         "task_id",
         "act",
@@ -91,6 +101,89 @@ class ComplianceTaskMasterAdmin(admin.ModelAdmin):
         if not request.user.is_superuser:
             readonly.extend(["task_id", "is_admin_created"])
         return tuple(readonly)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "import-excel/",
+                self.admin_site.admin_view(self.import_excel_view),
+                name="compliance_compliancetaskmaster_import_excel",
+            ),
+        ]
+        return custom_urls + urls
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        allowed_rows_display = [str(number) for number in sorted(ALLOWED_ROW_NUMBERS)]
+        extra_context.update(
+            {
+                "import_excel_url": reverse(
+                    "admin:compliance_compliancetaskmaster_import_excel"
+                ),
+                "can_import_tasks": request.user.is_superuser,
+                "allowed_rows": allowed_rows_display,
+                "sheet_name": SHEET_NAME,
+            }
+        )
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def import_excel_view(self, request):
+        if not request.user.is_superuser:
+            self.message_user(
+                request,
+                "Only superusers can import master compliance tasks.",
+                level=messages.ERROR,
+            )
+            return redirect(self._get_changelist_url())
+
+        if request.method == "POST":
+            form = ComplianceTaskImportForm(request.POST, request.FILES)
+            if form.is_valid():
+                uploaded_file = form.cleaned_data["excel_file"]
+                try:
+                    result = import_compliance_tasks_from_excel(
+                        uploaded_file, request.user
+                    )
+                except TaskImportError as exc:
+                    self.message_user(request, str(exc), level=messages.ERROR)
+                else:
+                    self.message_user(
+                        request,
+                        (
+                            f"Imported {result.created} new task(s) "
+                            f"and updated {result.updated} existing task(s)."
+                        ),
+                        level=messages.SUCCESS,
+                    )
+                    if result.skipped:
+                        skipped_messages = "; ".join(
+                            [f"Row {row}: {reason}" for row, reason in result.skipped]
+                        )
+                        self.message_user(
+                            request,
+                            f"Skipped rows ({len(result.skipped)}): {skipped_messages}",
+                            level=messages.WARNING,
+                        )
+                    return redirect(self._get_changelist_url())
+        else:
+            form = ComplianceTaskImportForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "form": form,
+            "title": "Import Compliance Tasks",
+            "sheet_name": SHEET_NAME,
+            "allowed_rows": [str(number) for number in sorted(ALLOWED_ROW_NUMBERS)],
+            "changelist_url": self._get_changelist_url(),
+        }
+        return render(
+            request, "admin/compliance/compliancetaskmaster/import_excel.html", context
+        )
+
+    def _get_changelist_url(self):
+        return reverse("admin:compliance_compliancetaskmaster_changelist")
 
     def save_model(self, request, obj, form, change):
         """Preserve admin-created flag unless a superuser explicitly changes it."""

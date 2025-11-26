@@ -122,6 +122,10 @@ class ParticularsType(TextChoices):
         "Form ECB 2-ECB transaction reporting",
         "Form ECB 2-ECB transaction reporting",
     )
+    ECB2_VIA_AD = (
+        "Form ECB 2-ECB transaction reporting via AD Category I bank",
+        "Form ECB 2-ECB transaction reporting via AD Category I bank",
+    )
 
     EPF_AUG = (
         "ECR / Challan-Deposit EPF contribution for Aug 2025",
@@ -318,6 +322,11 @@ class ParticularsType(TextChoices):
         "NDH-3-Half-yearly return for Nidhi companies",
     )
 
+    MGT7 = (
+        "MGT-7/MGT-7A-Annual return (MGT-7/MGT-7A)",
+        "MGT-7/MGT-7A-Annual return (MGT-7/MGT-7A)",
+    )
+
     PH1 = (
         "PH1-Statement of outward supplies (sales) – delay may attract interest & late fee",
         "PH1-Statement of outward supplies (sales) – delay may attract interest & late fee",
@@ -331,6 +340,11 @@ class ParticularsType(TextChoices):
     VARIOUS_27D = (
         "Various / Form 27D-SEBI filings, TCS Certificate",
         "Various / Form 27D-SEBI filings, TCS Certificate",
+    )
+
+    PMT_6 = (
+        "PMT-06-Tax payment challan for QRMP scheme – interest if delayed payment",
+        "PMT-06-Tax payment challan for QRMP scheme – interest if delayed payment",
     )
 
 
@@ -392,4 +406,82 @@ class PenaltyAmount(TextChoices):
     TAX_AUDIT_TCS_1_PERCENT = (
         "Int - Tax Audit – 1% per month (u/s 234A/B/C)TCS – 1% per month (u/s 206C) - Late Fees - Tax Audit – ₹1.5 lakh or 0.5% of turnover (u/s 271B)SEBI – ₹1,000 per dayTCS – ₹200 per day (u/s 234E) - Penalty - Tax Audit (Sec 271B): 0.5% of turnover (max ₹1,50,000). SEBI: ₹1 lakh per day or up to ₹1 crore.",
         "Int - Tax Audit – 1% per month (u/s 234A/B/C)TCS – 1% per month (u/s 206C) - Late Fees - Tax Audit – ₹1.5 lakh or 0.5% of turnover (u/s 271B)SEBI – ₹1,000 per dayTCS – ₹200 per day (u/s 234E) - Penalty - Tax Audit (Sec 271B): 0.5% of turnover (max ₹1,50,000). SEBI: ₹1 lakh per day or up to ₹1 crore.",
+    )
+
+    INT_18_PERCENT_PENALTY_10000 = (
+        "Int - 18 % p.a. - Late Fees - NA - Penalty - ₹10,000 or 10 % of tax",
+        "Int - 18 % p.a. - Late Fees - NA - Penalty - ₹10,000 or 10 % of tax",
+    )
+
+    INT_18_PERCENT_PENALTY_20000 = (
+        "Int - 18 % p.a. - Late Fees - ₹50 / day (₹20 NIL) - Penalty - ₹10,000 or 2× tax",
+        "Int - 18 % p.a. - Late Fees - ₹50 / day (₹20 NIL) - Penalty - ₹10,000 or 2× tax",
+    )
+    INT_18_PERCENT_DEFAULT = (
+        "Int - 18 % p.a. - Late Fees - NA - Penalty - ₹10,000 or 10 % of tax (default)",
+        "Int - 18 % p.a. - Late Fees - NA - Penalty - ₹10,000 or 10 % of tax (default)",
+    )
+    INT_18_PERCENT_PENALTY_DOUBLE_DEFAULT = (
+        "Int - 18 % p.a. - Late Fees - ₹50 / day (₹20 NIL) - Penalty - ₹10,000 or 2× tax (default)",
+        "Int - 18 % p.a. - Late Fees - ₹50 / day (₹20 NIL) - Penalty - ₹10,000 or 2× tax (default)",
+    )
+    INT_18_PERCENT_PENALTY_CAP = (
+        "Int - 18 % p.a. - Late Fees - ₹50 / day (₹20 NIL) up to ₹500 cap - Penalty - ₹10,000 or 10 % of tax",
+        "Int - 18 % p.a. - Late Fees - ₹50 / day (₹20 NIL) up to ₹500 cap - Penalty - ₹10,000 or 10 % of tax",
+    )
+    INT_18_PERCENT_PENALTY_025_TO = (
+        "Int - 18 % p.a. - Late Fees - ₹100 / day (₹50 CGST + ₹50 SGST); capped - Penalty - ₹200 / day (max 0.25 % of TO)",
+        "Int - 18 % p.a. - Late Fees - ₹100 / day (₹50 CGST + ₹50 SGST); capped - Penalty - ₹200 / day (max 0.25 % of TO)",
+    )
+    INT_18_PERCENT_PENALTY_50K_2L = (
+        "Int - 18 % p.a. - Late Fees - ₹100 / day (₹50 CGST + ₹50 SGST); capped - Penalty - ₹50k–₹2 lakh as per offence",
+        "Int - 18 % p.a. - Late Fees - ₹100 / day (₹50 CGST + ₹50 SGST); capped - Penalty - ₹50k–₹2 lakh as per offence",
+    )
+    INT_1_TO_1_5_PERCENT_271H = (
+        "Int - 1% – 1.5% p.m. - Late Fees - ₹200/day (234E) - Penalty - ₹10k–₹1 lakh (271H)",
+        "Int - 1% – 1.5% p.m. - Late Fees - ₹200/day (234E) - Penalty - ₹10k–₹1 lakh (271H)",
+    )
+    PENALTY_1_TO_5_L = (
+        "Int - NA - Late Fees - ₹5,000/day - Penalty - ₹1–5 L",
+        "Int - NA - Late Fees - ₹5,000/day - Penalty - ₹1–5 L",
+    )
+    PENALTY_5_TO_25_L = (
+        "Int - NA - Late Fees - ₹1 L/day - Penalty - ₹5–25 L",
+        "Int - NA - Late Fees - ₹1 L/day - Penalty - ₹5–25 L",
+    )
+    INT_1_PERCENT_201_1A = (
+        "Int - 1% p.m. u/s 201(1A) (from date of deduction to payment) - Late Fees - NA - Penalty - ₹200/day u/s 234E; ₹10k–₹1 lakh u/s 271H",
+        "Int - 1% p.m. u/s 201(1A) (from date of deduction to payment) - Late Fees - NA - Penalty - ₹200/day u/s 234E; ₹10k–₹1 lakh u/s 271H",
+    )
+    INT_1_PERCENT_273B = (
+        "Int - 1% p.m. (234B/234C) - Late Fees - NA - Penalty - ₹1,000–₹10,000 (273B)",
+        "Int - 1% p.m. (234B/234C) - Late Fees - NA - Penalty - ₹1,000–₹10,000 (273B)",
+    )
+    INT_1_TO_1_5_PERCENT_234E = (
+        "Int - 1%–1.5% p.m. - Late Fees - NA - Penalty - ₹200/day (234E); ₹10k–₹1 lakh",
+        "Int - 1%–1.5% p.m. - Late Fees - NA - Penalty - ₹200/day (234E); ₹10k–₹1 lakh",
+    )
+    INT_12_PERCENT_PENALTY_14B = (
+        "Int - 12% p.a. - Late Fees - 5%–25% p.a. - Penalty - Penalty u/s 14 & 14B – damages max 25%",
+        "Int - 12% p.a. - Late Fees - 5%–25% p.a. - Penalty - Penalty u/s 14 & 14B – damages max 25%",
+    )
+    INT_3X_BANK_RATE_MSME = (
+        "Int - 3× bank rate p.a. on delayed MSME payment - Late Fees - ₹100 per day (general ROC late fee) - Penalty - ₹20,000 + up to ₹3 lakh / imprisonment",
+        "Int - 3× bank rate p.a. on delayed MSME payment - Late Fees - ₹100 per day (general ROC late fee) - Penalty - ₹20,000 + up to ₹3 lakh / imprisonment",
+    )
+    INT_3X_BANK_RATE_GENERAL = (
+        "Int - 3× bank rate - Late Fees - ₹100 per day - Penalty - ₹20,000 + up to ₹3 lakh",
+        "Int - 3× bank rate - Late Fees - ₹100 per day - Penalty - ₹20,000 + up to ₹3 lakh",
+    )
+    PENALTY_FEMA_EXTENDED = (
+        "Int - NA - Late Fees - ₹100 per day (Companies Act) - Penalty - Compounding penalty up to ₹10,000 per contravention, and if continuing, ₹2,000 per day after the first day (Sec 13, FEMA 1999).",
+        "Int - NA - Late Fees - ₹100 per day (Companies Act) - Penalty - Compounding penalty up to ₹10,000 per contravention, and if continuing, ₹2,000 per day after the first day (Sec 13, FEMA 1999).",
+    )
+    INT_1_PERCENT_271F = (
+        "Int - 1% p.m. u/s 234A, 234B, 234C - Late Fees - ₹1,000 (income ≤ ₹5 L); ₹5,000 (income > ₹5 L) - Penalty - Penalty u/s 271F (discretionary) + loss of carry-forward",
+        "Int - 1% p.m. u/s 234A, 234B, 234C - Late Fees - ₹1,000 (income ≤ ₹5 L); ₹5,000 (income > ₹5 L) - Penalty - Penalty u/s 271F (discretionary) + loss of carry-forward",
+    )
+    INT_1_PERCENT_271BA = (
+        "Int - 1% p.m. u/s 234A, 234B, 234C - Late Fees - ₹1,000 (income ≤ ₹5 L); ₹5,000 (income > ₹5 L) - Penalty - Penalty u/s 271BA = ₹1 lakh",
+        "Int - 1% p.m. u/s 234A, 234B, 234C - Late Fees - ₹1,000 (income ≤ ₹5 L); ₹5,000 (income > ₹5 L) - Penalty - Penalty u/s 271BA = ₹1 lakh",
     )

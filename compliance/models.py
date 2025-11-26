@@ -25,7 +25,7 @@ class ComplianceTaskMaster(BaseModel):
         choices=ActNameChoices.choices,
     )
     particulars = models.TextField(choices=ParticularsType.choices)
-    due_date = models.DateField()
+    due_date = models.DateField(null=True, blank=True)
 
     frequency = models.CharField(max_length=100, choices=Frequency.choices)
     severity = models.CharField(max_length=50)
