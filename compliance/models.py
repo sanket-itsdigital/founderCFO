@@ -134,43 +134,30 @@ class ComplianceTaskMaster(BaseModel):
         base_date = self.due_date
         frequency_value = self.frequency
 
-        monthly_frequencies = {
-            Frequency.EVERY_MONTH_APRIL_MARCH,
-            Frequency.MONTHLY_STATUTORY,
-            Frequency.MONTHLY_PF_ESI,
-            Frequency.MONTHLY_QUARTERLY_TDS,
-        }
-        quarterly_frequencies = {
-            Frequency.QUARTERLY,
-            Frequency.QUARTERLY_END,
-            Frequency.QUARTERLY_TDS,
-        }
-        half_yearly_frequencies = {Frequency.HALF_YEARLY}
-        annual_frequencies = {Frequency.ANNUALLY, Frequency.ANNUAL}
-        non_periodic_frequencies = {
-            Frequency.EVENT_BASED,
-            Frequency.EVENT_BASED_AS_REQUIRED,
-            Frequency.CONTINUOUS,
-        }
+        # Use string comparison since frequency is stored as string value
+        frequency_lower = str(frequency_value).lower()
 
-        if frequency_value in monthly_frequencies:
+        # Check against actual Frequency enum values
+        if frequency_value == Frequency.MONTHLY:
             return self._add_months(base_date, 1)
-        if frequency_value in quarterly_frequencies:
+        if frequency_value == Frequency.QUARTERLY:
             return self._add_months(base_date, 3)
-        if frequency_value in half_yearly_frequencies:
+        if frequency_value == Frequency.HALF_YEARLY:
             return self._add_months(base_date, 6)
-        if frequency_value in annual_frequencies:
+        if frequency_value == Frequency.ANNUALLY:
             return self._add_months(base_date, 12)
-        if frequency_value in non_periodic_frequencies:
-            return None
 
-        frequency_lower = frequency_value.lower()
-
-        if frequency_lower == "monthly":
+        # Fallback to string matching for flexibility
+        if frequency_lower == "monthly" or "month" in frequency_lower:
             return self._add_months(base_date, 1)
-        if frequency_lower == "quarterly":
+        if frequency_lower == "quarterly" or "quarter" in frequency_lower:
             return self._add_months(base_date, 3)
-        if frequency_lower in {"half-yearly", "half yearly", "semi-annual"}:
+        if frequency_lower in {
+            "half-yearly",
+            "half yearly",
+            "semi-annual",
+            "half yearly",
+        }:
             return self._add_months(base_date, 6)
         if frequency_lower in {"annually", "annual", "yearly"}:
             return self._add_months(base_date, 12)
