@@ -49,16 +49,16 @@ class ComplianceTaskListCreateView(generics.ListCreateAPIView):
     List all compliance tasks or create a new one.
 
     Query Parameters:
-    - admin_tasks=true: Show all admin-created tasks (available for selection)
+    - admin_tasks=true: Show only admin-created tasks (still filtered by company)
     - is_admin_created=true/false: Filter by admin-created status
     - act: Filter by act name
     - status: Filter by status
     - is_overdue: Filter by overdue status (true/false)
 
     Behavior:
-    - For regular users: By default, only shows tasks selected by their company.
+    - For regular users: Always shows tasks selected by their company.
     - For superusers: By default, shows all tasks (for admin management).
-    - When admin_tasks=true: Shows all admin-created tasks regardless of user role.
+    - When admin_tasks=true: Shows only admin-created tasks that are selected by the company.
 
     Note: For a dedicated endpoint to get only selected tasks, use GET /api/compliance/tasks/selected/
     """
@@ -70,20 +70,21 @@ class ComplianceTaskListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         queryset = ComplianceTaskMaster.objects.all()
 
-        # Check if user wants to see all admin-created tasks (available for selection)
+        # Get current company for filtering
+        company = get_company_from_request(self.request)
+
+        # For non-superusers, always filter by company's selected tasks
+        if not self.request.user.is_superuser:
+            if company:
+                queryset = queryset.filter(companies=company)
+            else:
+                # If no company, return empty queryset
+                queryset = queryset.none()
+
+        # Check if user wants to see only admin-created tasks (still filtered by company)
         admin_tasks_only = self.request.query_params.get("admin_tasks", None)
         if admin_tasks_only and admin_tasks_only.lower() == "true":
-            # Show all admin-created tasks (useful for companies to see what's available)
             queryset = queryset.filter(is_admin_created=True)
-        else:
-            # For non-superusers, filter by company's selected tasks
-            if not self.request.user.is_superuser:
-                company = getattr(self.request, "company", None)
-                if company:
-                    queryset = queryset.filter(companies=company)
-                else:
-                    # If no company, return empty queryset
-                    queryset = queryset.none()
 
         # Filter by act if provided
         act = self.request.query_params.get("act", None)
