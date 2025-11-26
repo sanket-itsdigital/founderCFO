@@ -15,6 +15,7 @@ from compliance.enums import (
     ParticularsType,
     PenaltyAmount,
 )
+from accounts.models import Company
 
 
 # Create your models here.
@@ -73,6 +74,12 @@ class ComplianceTaskMaster(BaseModel):
     is_admin_created = models.BooleanField(
         default=False,
         help_text="Mark true if created by superadmin; task is visible to all companies.",
+    )
+    companies = models.ManyToManyField(
+        Company,
+        related_name="selected_compliance_tasks",
+        blank=True,
+        help_text="Companies that have selected this task. Only selected tasks are displayed for each company.",
     )
 
     def calculate_days_until_due(self):

@@ -28,6 +28,7 @@ class ComplianceTaskMasterAdmin(admin.ModelAdmin):
         "company_type",
         "frequency",
         "is_admin_created",
+        "companies",
     )
     readonly_fields = ("days_until_due", "is_overdue")
     ordering = ("-created_at",)
@@ -46,6 +47,7 @@ class ComplianceTaskMasterAdmin(admin.ModelAdmin):
                     "company_type",
                     "assignee",
                     "is_admin_created",
+                    "companies",
                 )
             },
         ),

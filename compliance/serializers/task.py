@@ -2,6 +2,20 @@ from rest_framework import serializers
 from compliance.models import ComplianceTaskMaster
 
 
+class ComplianceTaskDropdownSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for dropdown lists - only id and name."""
+
+    name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ComplianceTaskMaster
+        fields = ["id", "name"]
+
+    def get_name(self, obj):
+        """Return task name as combination of task_id and particulars for display."""
+        return f"{obj.act} - {obj.particulars}"
+
+
 class ComplianceTaskMasterSerializer(serializers.ModelSerializer):
     task_id = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)

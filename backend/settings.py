@@ -162,6 +162,16 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    # Always render date/datetime fields as DD-MM-YYYY (or DD-MM-YYYY HH:MM:SS)
+    # while still accepting ISO inputs for compatibility.
+    "DATE_FORMAT": "%d-%m-%Y",
+    "DATETIME_FORMAT": "%d-%m-%Y %H:%M:%S",
+    "DATE_INPUT_FORMATS": ["%d-%m-%Y", "%Y-%m-%d", "iso-8601"],
+    "DATETIME_INPUT_FORMATS": [
+        "%d-%m-%Y %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "iso-8601",
+    ],
 }
 
 
