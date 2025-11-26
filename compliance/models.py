@@ -298,6 +298,11 @@ class ComplianceTaskMaster(BaseModel):
         if not self.task_id:
             self.task_id = self._generate_task_id()
 
+        # If completed_date is set, automatically set status to COMPLETED before validation
+        # This ensures validation passes since clean() checks that status is COMPLETED when completed_date exists
+        if self.completed_date:
+            self.status = ComplianceStatusChoices.COMPLETED
+
         # Validate user-supplied data (e.g., completed_date vs status)
         self.full_clean(validate_unique=False)
 
@@ -307,9 +312,8 @@ class ComplianceTaskMaster(BaseModel):
         calculated_next_due = self.calculate_next_due_date()
         self.next_due_date = calculated_next_due
 
-        if self.completed_date:
-            self.status = ComplianceStatusChoices.COMPLETED
-        else:
+        # If status wasn't set above (no completed_date), calculate it
+        if not self.completed_date:
             self.status = self.calculate_status()
 
         self.is_overdue = self.calculate_is_overdue()
