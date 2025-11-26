@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from compliance.models import ComplianceTaskMaster, CompliancePayments
+from compliance.views.api.task_views import get_company_from_request
 from backend.enums import ComplianceStatusChoices
 
 
@@ -27,7 +28,7 @@ class ActWiseSummaryView(APIView):
 
         # For non-superusers, filter by company's selected tasks
         if not request.user.is_superuser:
-            company = getattr(request, "company", None)
+            company = get_company_from_request(request)
             if company:
                 tasks = tasks.filter(companies=company)
             else:
@@ -36,13 +37,15 @@ class ActWiseSummaryView(APIView):
         if act:
             tasks = tasks.filter(act=act)
 
-        # Group by act
-        acts = tasks.values("act").distinct()
+        # Group by act - filter out None/empty acts
+        acts = tasks.values("act").distinct().exclude(act__isnull=True).exclude(act="")
 
         summary_data = []
 
         for act_data in acts:
             act_name = act_data["act"]
+            if not act_name:
+                continue
             act_tasks = tasks.filter(act=act_name)
 
             total_tasks = act_tasks.count()
@@ -112,7 +115,7 @@ class ExposureAnalysisView(APIView):
 
         # For non-superusers, filter by company's selected tasks
         if not request.user.is_superuser:
-            company = getattr(request, "company", None)
+            company = get_company_from_request(request)
             if company:
                 # Get task IDs for company's selected tasks
                 company_task_ids = company.selected_compliance_tasks.values_list(

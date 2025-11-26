@@ -130,7 +130,7 @@ class ComplianceTaskRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIV
 
         # For non-superusers, filter by company's selected tasks
         if not self.request.user.is_superuser:
-            company = getattr(self.request, "company", None)
+            company = get_company_from_request(self.request)
             if company:
                 queryset = queryset.filter(companies=company)
             else:

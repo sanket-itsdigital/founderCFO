@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions
 from compliance.models import CompliancePayments
 from compliance.serializers import CompliancePaymentSerializer
+from compliance.views.api.task_views import get_company_from_request
 
 
 class CompliancePaymentListCreateView(generics.ListCreateAPIView):
@@ -17,7 +18,7 @@ class CompliancePaymentListCreateView(generics.ListCreateAPIView):
 
         # For non-superusers, filter by company's selected tasks
         if not self.request.user.is_superuser:
-            company = getattr(self.request, "company", None)
+            company = get_company_from_request(self.request)
             if company:
                 # Get task IDs for company's selected tasks
                 company_task_ids = company.selected_compliance_tasks.values_list(
@@ -64,7 +65,7 @@ class CompliancePaymentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyA
 
         # For non-superusers, filter by company's selected tasks
         if not self.request.user.is_superuser:
-            company = getattr(self.request, "company", None)
+            company = get_company_from_request(self.request)
             if company:
                 # Get task IDs for company's selected tasks
                 company_task_ids = company.selected_compliance_tasks.values_list(

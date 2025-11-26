@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from compliance.models import ComplianceTaskMaster, CompliancePayments
+from compliance.views.api.task_views import get_company_from_request
 from backend.enums import ComplianceStatusChoices
 
 
@@ -28,7 +29,7 @@ class ComplianceDashboardView(APIView):
 
         # For non-superusers, filter by company's selected tasks
         if not request.user.is_superuser:
-            company = getattr(request, "company", None)
+            company = get_company_from_request(request)
             if company:
                 all_tasks = all_tasks.filter(companies=company)
             else:
@@ -88,7 +89,7 @@ class ComplianceDashboardView(APIView):
 
         # For non-superusers, filter payments by company's selected tasks
         if not request.user.is_superuser:
-            company = getattr(request, "company", None)
+            company = get_company_from_request(request)
             if company:
                 # Get task IDs for company's selected tasks
                 company_task_ids = company.selected_compliance_tasks.values_list(
