@@ -149,6 +149,7 @@ STATIC_URL = "static/"
 
 # Directory containing app/static for development
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 # (STATIC_ROOT intentionally omitted per user request)
 
