@@ -36,8 +36,10 @@ List response:
     "completed_date": null,
     "reminder_days": 60,
     "penalty_amount": "5000",
-    "payment_amount": null,
-    "payment_reference": null,
+    "payment_amount": "250000.00",
+    "payment_reference": "CHL-001",
+    "payment_method": "Netbanking",
+    "payment_period": "2025-11-15",
     "consequences": "Director DIN deactivation",
     "notes": "Collect PAN copies",
     "evidence_url": null,
@@ -139,6 +141,35 @@ Create payload (server auto-derives `payment_id`, `task_id`, `related_act`, `due
 
 - `PATCH` accepts mutable fields (`compliance_task`, `payment_type`, financials, etc.).
 - `DELETE` removes the payment record.
+
+### Payment Dashboard
+`GET /payments/dashboard/`
+
+Aggregates `payment_amount` + `payment_period` from tasks (auto-filtered to the authenticated company) to power the tax outflow UI cards.
+
+```json
+{
+  "total_tax_outflow": {
+    "amount": 2500000.0,
+    "display": "₹25.00L",
+    "records": 18
+  },
+  "this_month": {
+    "amount": 750000.0,
+    "display": "₹7.50L",
+    "trend_percent": 12.5
+  },
+  "largest_payment": {
+    "task_id": "GST-012",
+    "act": "GST Act",
+    "particulars": "GSTR-3B-Summary return & tax payment – interest & late fee if delay",
+    "payment_period": "2025-11-15",
+    "payment_amount": 450000.0,
+    "payment_amount_display": "₹4.50L",
+    "payment_method": "Netbanking"
+  }
+}
+```
 
 ---
 

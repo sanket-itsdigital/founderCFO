@@ -46,6 +46,8 @@ class ComplianceTaskMasterSerializer(serializers.ModelSerializer):
             "penalty_amount",
             "payment_amount",
             "payment_reference",
+            "payment_method",
+            "payment_period",
             "consequences",
             "notes",
             "evidence_url",

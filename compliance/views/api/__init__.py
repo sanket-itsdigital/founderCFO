@@ -8,6 +8,7 @@ from .task_views import (
 from .payment_views import (
     CompliancePaymentListCreateView,
     CompliancePaymentRetrieveUpdateDestroyView,
+    CompliancePaymentDashboardView,
 )
 from .summary_views import ActWiseSummaryView, ExposureAnalysisView
 from .dashboard_views import ComplianceDashboardView
@@ -23,4 +24,5 @@ __all__ = [
     "ActWiseSummaryView",
     "ExposureAnalysisView",
     "ComplianceDashboardView",
+    "CompliancePaymentDashboardView",
 ]

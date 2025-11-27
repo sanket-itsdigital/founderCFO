@@ -89,8 +89,10 @@ class ComplianceTaskMasterAdmin(admin.ModelAdmin):
                     "interest_percentage",
                     "interest_amount",
                     "payment_amount",
+                    "payment_method",
                     "payment_reference",
                     "consequences",
+                    "payment_period",
                 )
             },
         ),

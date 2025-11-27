@@ -7,6 +7,7 @@ from compliance.views.api import (
     ComplianceTaskSelectedView,
     CompliancePaymentListCreateView,
     CompliancePaymentRetrieveUpdateDestroyView,
+    CompliancePaymentDashboardView,
     ActWiseSummaryView,
     ExposureAnalysisView,
     ComplianceDashboardView,
@@ -51,6 +52,11 @@ urlpatterns = [
         "payments/<uuid:pk>/",
         CompliancePaymentRetrieveUpdateDestroyView.as_view(),
         name="payment-detail",
+    ),
+    path(
+        "payments/dashboard/",
+        CompliancePaymentDashboardView.as_view(),
+        name="payment-dashboard",
     ),
     # Summary and Analysis APIs
     path(

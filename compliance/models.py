@@ -48,8 +48,11 @@ class ComplianceTaskMaster(BaseModel):
     penalty_amount = models.CharField(
         null=True, blank=True, choices=PenaltyAmount.choices
     )
-    payment_amount = models.CharField(max_length=100, null=True, blank=True)
+    payment_amount = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
     payment_reference = models.CharField(max_length=255, null=True, blank=True)
+    payment_method = models.CharField(max_length=100, null=True, blank=True)
     consequences = models.TextField(
         null=True,
         blank=True,
@@ -75,6 +78,7 @@ class ComplianceTaskMaster(BaseModel):
         default=False,
         help_text="Mark true if created by superadmin; task is visible to all companies.",
     )
+    payment_period = models.DateField(null=True, blank=True)
     companies = models.ManyToManyField(
         Company,
         related_name="selected_compliance_tasks",
@@ -206,6 +210,7 @@ class ComplianceTaskMaster(BaseModel):
             "last_filed_date",
             "next_due_date",
             "completed_date",
+            "payment_period",
         ]
         for field_name in date_fields:
             value = getattr(self, field_name)

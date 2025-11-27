@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional, Tuple
 
 from django.core.exceptions import ValidationError
@@ -104,6 +105,8 @@ HEADER_FIELD_MAP = {
     "completed date": "completed_date",
     "penalty amount": "penalty_amount",
     "payment amount": "payment_amount",
+    "payment period": "payment_period",
+    "payment method": "payment_method",
     "payment reference": "payment_reference",
     "consequences": "consequences",
     "notes": "notes",
@@ -113,7 +116,8 @@ HEADER_FIELD_MAP = {
     "interest": "interest_amount",
 }
 
-DATE_FIELDS = {"due_date", "next_due_date", "completed_date"}
+DATE_FIELDS = {"due_date", "next_due_date", "completed_date", "payment_period"}
+DECIMAL_FIELDS = {"payment_amount"}
 REQUIRED_FIELDS = {"act", "particulars", "frequency"}
 
 
@@ -365,7 +369,10 @@ def _transform_row_payload(row_payload, date1904) -> Dict[str, Optional[str]]:
             except ValueError as exc:
                 raise ValueError(f"{field_name}: {exc}") from exc
         else:
-            coerced_value = _coerce_to_string(raw_value)
+            if field_name in DECIMAL_FIELDS:
+                coerced_value = _coerce_to_decimal(raw_value)
+            else:
+                coerced_value = _coerce_to_string(raw_value)
             if field_name == "frequency":
                 coerced_value = _normalize_frequency(coerced_value)
             elif field_name == "interest_percentage":
@@ -420,6 +427,27 @@ def _coerce_to_string(value) -> Optional[str]:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value).strip()
+
+
+def _coerce_to_decimal(value) -> Optional[Decimal]:
+    if value in (None, "", "NA", "N/A"):
+        return None
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, (int, float)):
+        return Decimal(str(value))
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        sanitized = re.sub(r"[^\d\.\-]", "", cleaned)
+        if not sanitized:
+            return None
+        try:
+            return Decimal(sanitized)
+        except (InvalidOperation, ValueError):
+            raise ValueError("payment_amount: Provide a numeric value.")
+    raise ValueError("payment_amount: Provide a numeric value.")
 
 
 def _persist_task(task_payload: Dict[str, Optional[str]], acting_user) -> bool:
