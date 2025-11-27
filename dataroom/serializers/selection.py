@@ -123,7 +123,7 @@ class CompanyFolderSelectionSerializer(serializers.ModelSerializer):
 class CompanyCategorySelectionSerializer(serializers.ModelSerializer):
     """Serializer for company category selection"""
 
-    category_name = serializers.CharField(source="category.name", read_only=True)
+    name = serializers.CharField(source="category.name", read_only=True)
     category_description = serializers.CharField(
         source="category.description", read_only=True
     )
@@ -135,7 +135,7 @@ class CompanyCategorySelectionSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "category",
-            "category_name",
+            "name",
             "category_description",
             "folder_id",
             "folder_name",
@@ -144,7 +144,7 @@ class CompanyCategorySelectionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "category_name",
+            "name",
             "category_description",
             "folder_id",
             "folder_name",
