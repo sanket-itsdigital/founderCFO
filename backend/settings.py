@@ -72,7 +72,6 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "accounts.middleware.SwaggerAuthBypassMiddleware",  # Must run before AuthenticationMiddleware
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "accounts.middleware.CompanyScopeMiddleware",
     "accounts.middleware.RoleAccessMiddleware",
@@ -168,6 +167,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     # Always render date/datetime fields as DD-MM-YYYY (or DD-MM-YYYY HH:MM:SS)
     # while still accepting ISO inputs for compatibility.
     "DATE_FORMAT": "%d-%m-%Y",

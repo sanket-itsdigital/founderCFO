@@ -19,59 +19,34 @@ from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include, re_path
-from functools import wraps
-from django.contrib.auth.models import AnonymousUser
-
 from backend.views import dashboard
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
 
 
-def bypass_auth(view_func):
-    """Decorator to bypass authentication for Swagger views."""
-
-    @wraps(view_func)
-    def wrapper(request, *args, **kwargs):
-        # Set user as anonymous to bypass authentication checks
-        request.user = AnonymousUser()
-        return view_func(request, *args, **kwargs)
-
-    return wrapper
-
-
 schema_view = get_schema_view(
     openapi.Info(
-        title="FounderCFO",
+        title="FounderCFO API",
         default_version="v1",
     ),
     public=True,
-    permission_classes=(permissions.AllowAny,),
-    authentication_classes=(),  # No authentication required for Swagger
+    permission_classes=[permissions.AllowAny],
 )
-
-# Wrap Swagger views to bypass authentication
-swagger_ui_view = bypass_auth(schema_view.with_ui("swagger", cache_timeout=0))
-redoc_ui_view = bypass_auth(schema_view.with_ui("redoc", cache_timeout=0))
-swagger_json_view = bypass_auth(schema_view.without_ui(cache_timeout=0))
 
 urlpatterns = [
     # Swagger URLs - using wrapped views that bypass authentication
     re_path(
         r"^swagger(?P<format>\.json|\.yaml)$",
-        swagger_json_view,
+        schema_view.without_ui(cache_timeout=0),
         name="schema-json",
     ),
     path(
         "swagger/",
-        swagger_ui_view,
+        schema_view.with_ui("swagger", cache_timeout=0),
         name="schema-swagger-ui",
     ),
-    path(
-        "redoc/",
-        redoc_ui_view,
-        name="schema-redoc",
-    ),
+    path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
     path("", dashboard, name="dashboard"),
     path("admin/", admin.site.urls),
     path("api/account/", include("accounts.urls")),
