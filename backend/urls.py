@@ -19,11 +19,25 @@ from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include, re_path
+from functools import wraps
+from django.contrib.auth.models import AnonymousUser
 
 from backend.views import dashboard
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
+
+
+def bypass_auth(view_func):
+    """Decorator to bypass authentication for Swagger views."""
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        # Set user as anonymous to bypass authentication checks
+        request.user = AnonymousUser()
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
 
 
 schema_view = get_schema_view(
@@ -36,21 +50,26 @@ schema_view = get_schema_view(
     authentication_classes=(),  # No authentication required for Swagger
 )
 
+# Wrap Swagger views to bypass authentication
+swagger_ui_view = bypass_auth(schema_view.with_ui("swagger", cache_timeout=0))
+redoc_ui_view = bypass_auth(schema_view.with_ui("redoc", cache_timeout=0))
+swagger_json_view = bypass_auth(schema_view.without_ui(cache_timeout=0))
+
 urlpatterns = [
-    # Swagger URLs
+    # Swagger URLs - using wrapped views that bypass authentication
     re_path(
         r"^swagger(?P<format>\.json|\.yaml)$",
-        schema_view.without_ui(cache_timeout=0),
+        swagger_json_view,
         name="schema-json",
     ),
     path(
         "swagger/",
-        schema_view.with_ui("swagger", cache_timeout=0),
+        swagger_ui_view,
         name="schema-swagger-ui",
     ),
     path(
         "redoc/",
-        schema_view.with_ui("redoc", cache_timeout=0),
+        redoc_ui_view,
         name="schema-redoc",
     ),
     path("", dashboard, name="dashboard"),

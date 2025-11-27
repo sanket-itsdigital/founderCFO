@@ -72,6 +72,7 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "accounts.middleware.SwaggerAuthBypassMiddleware",  # Must run before AuthenticationMiddleware
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "accounts.middleware.CompanyScopeMiddleware",
     "accounts.middleware.RoleAccessMiddleware",

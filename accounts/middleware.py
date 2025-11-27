@@ -5,6 +5,7 @@ from typing import Callable, Iterable
 
 from django.conf import settings
 from django.http import JsonResponse
+from django.contrib.auth.models import AnonymousUser
 
 from accounts.utils import get_user_company
 from backend.enums import UserRoleChoices
@@ -24,6 +25,32 @@ def get_current_company():
     return getattr(RequestContext._state, "company", None)
 
 
+class SwaggerAuthBypassMiddleware:
+    """Bypass authentication for Swagger/Redoc endpoints by setting user as anonymous.
+
+    This middleware runs before AuthenticationMiddleware to prevent authentication,
+    and the user is set again after AuthenticationMiddleware in CompanyScopeMiddleware.
+    """
+
+    def __init__(self, get_response: Callable):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        path = request.path
+        # Check if this is a Swagger or Redoc path
+        if (
+            path.startswith("/swagger")
+            or path.startswith("/redoc")
+            or path.startswith("/swagger/")
+            or path.startswith("/redoc/")
+        ):
+            # Set user as anonymous to bypass authentication checks
+            request.user = AnonymousUser()
+            # Mark request to skip authentication
+            request._swagger_bypass = True
+        return self.get_response(request)
+
+
 class CompanyScopeMiddleware:
     """Attach the active company to the request and shared context."""
 
@@ -31,6 +58,10 @@ class CompanyScopeMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # If this is a Swagger path, ensure user remains anonymous after AuthenticationMiddleware
+        if getattr(request, "_swagger_bypass", False):
+            request.user = AnonymousUser()
+
         set_current_company(None)
         request.company = None
         if hasattr(request, "user") and request.user.is_authenticated:
@@ -69,9 +100,14 @@ class RoleAccessMiddleware:
     def __call__(self, request):
         # Skip middleware for Swagger/Redoc endpoints
         path = request.path
-        if path.startswith("/swagger/") or path.startswith("/redoc/") or path.startswith("/swagger") or path.startswith("/redoc"):
+        if (
+            path.startswith("/swagger/")
+            or path.startswith("/redoc/")
+            or path.startswith("/swagger")
+            or path.startswith("/redoc")
+        ):
             return self.get_response(request)
-        
+
         user = getattr(request, "user", None)
         if user and user.is_authenticated and not user.is_superuser:
             role = getattr(user, "role", None)
