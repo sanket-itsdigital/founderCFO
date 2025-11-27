@@ -144,14 +144,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-# Use absolute URL for static to ensure correct asset resolution in production
-STATIC_URL = "/static/"
+# Static URL as originally configured; user manages static differently in production
+STATIC_URL = "static/"
 
 # Directory containing app/static for development
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 
-# Collected static files destination for production (e.g., PythonAnywhere)
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# (STATIC_ROOT intentionally omitted per user request)
 
 # Media uploads (for Data Room files)
 MEDIA_URL = "/media/"
