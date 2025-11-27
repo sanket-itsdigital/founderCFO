@@ -67,11 +67,15 @@ class RoleAccessMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # Skip middleware for Swagger/Redoc endpoints
+        path = request.path
+        if path.startswith("/swagger/") or path.startswith("/redoc/") or path.startswith("/swagger") or path.startswith("/redoc"):
+            return self.get_response(request)
+        
         user = getattr(request, "user", None)
         if user and user.is_authenticated and not user.is_superuser:
             role = getattr(user, "role", None)
             method = request.method.upper()
-            path = request.path
 
             if path.startswith("/api/"):
                 if role == UserRoleChoices.CFO and method not in self.SAFE_METHODS:
