@@ -13,7 +13,9 @@ from captable.models import (
     CapTableEventDocument,
     CapTableEvents,
     CapitalizationTable,
+    ESOPGrant,
     Shareholder,
+    VestingSchedule,
 )
 from captable.serializers import (
     CapTableEventDetailSerializer,
@@ -23,7 +25,10 @@ from captable.serializers import (
     CapTableEventSerializer,
     CapTableEventTransactionCreateSerializer,
     CapitalizationTableSerializer,
+    ESOPGrantSerializer,
     ShareholderSerializer,
+    VestingScheduleDropdownSerializer,
+    VestingScheduleSerializer,
 )
 
 
@@ -313,4 +318,67 @@ class CapTableEventTransactionDetailView(CompanyScopedMixin, generics.RetrieveAP
             CapTableEvents.objects.filter(**self._company_filter())
             .select_related("company")
             .prefetch_related("documents", "transactions__shareholder")
+        )
+
+
+class ESOPGrantListCreateView(CompanyScopedMixin, generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ESOPGrantSerializer
+
+    def get_queryset(self):
+        queryset = ESOPGrant.objects.filter(**self._company_filter())
+        return queryset.select_related("company", "vesting_schedule_plan").order_by(
+            "-grant_date", "-created_at"
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+
+class ESOPGrantDetailView(CompanyScopedMixin, generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ESOPGrantSerializer
+
+    def get_queryset(self):
+        return ESOPGrant.objects.filter(**self._company_filter()).select_related(
+            "company",
+            "vesting_schedule_plan",
+        )
+
+    def perform_update(self, serializer):
+        """Updates an existing ESOP grant."""
+        serializer.save(updated_by=self.request.user)
+
+
+class VestingScheduleListCreateView(CompanyScopedMixin, generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = VestingScheduleSerializer
+
+    def get_queryset(self):
+        return VestingSchedule.objects.filter(**self._company_filter()).order_by("name")
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+
+class VestingScheduleDetailView(
+    CompanyScopedMixin, generics.RetrieveUpdateDestroyAPIView
+):
+    permission_classes = [IsAuthenticated]
+    serializer_class = VestingScheduleSerializer
+
+    def get_queryset(self):
+        return VestingSchedule.objects.filter(**self._company_filter()).order_by("name")
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+
+class VestingScheduleDropdownListView(CompanyScopedMixin, generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = VestingScheduleDropdownSerializer
+
+    def get_queryset(self):
+        return VestingSchedule.objects.filter(**self._company_filter()).order_by(
+            "name"
         )

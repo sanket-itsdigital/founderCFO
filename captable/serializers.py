@@ -1,4 +1,5 @@
 from decimal import Decimal
+import uuid
 
 from django.db import transaction
 from rest_framework import serializers
@@ -9,6 +10,8 @@ from captable.models import (
     CapTableEventDocument,
     CapTableEvents,
     CapitalizationTable,
+    ESOPGrant,
+    VestingSchedule,
     Shareholder,
 )
 
@@ -421,3 +424,187 @@ class CapTableEventTransactionCreateSerializer(serializers.Serializer):
                 )
                 created_transactions.append(row)
         return event, created_transactions
+
+
+class VestingScheduleSerializer(
+    CompanyScopedSerializerMixin, serializers.ModelSerializer
+):
+    company_id = serializers.UUIDField(write_only=True, required=False)
+
+    class Meta:
+        model = VestingSchedule
+        fields = (
+            "id",
+            "company_id",
+            "name",
+            "total_shares",
+            "start_date",
+            "vesting_frequency",
+            "cliff_period_months",
+            "total_vesting_period_months",
+            "single_trigger",
+            "double_trigger",
+            "notes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate_company_id(self, value):
+        self._company = self._get_company(value)
+        return value
+
+    def validate(self, attrs):
+        cliff = attrs.get("cliff_period_months")
+        total = attrs.get("total_vesting_period_months")
+        if self.instance:
+            if cliff is None:
+                cliff = self.instance.cliff_period_months
+            if total is None:
+                total = self.instance.total_vesting_period_months
+        if cliff and total and total < cliff:
+            raise serializers.ValidationError(
+                {"total_vesting_period_months": "Total period must be >= cliff period."}
+            )
+        return attrs
+
+    def create(self, validated_data, **kwargs):
+        company_id = validated_data.pop("company_id", None)
+        company = getattr(self, "_company", None)
+        if company_id and not company:
+            company = self._get_company(company_id)
+        if not company:
+            raise serializers.ValidationError({"company_id": "Company is required."})
+        return VestingSchedule.objects.create(
+            company=company,
+            **validated_data,
+            **kwargs,
+        )
+
+    def update(self, instance, validated_data, **kwargs):
+        company_id = validated_data.pop("company_id", None)
+        if company_id:
+            instance.company = self._get_company(company_id)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        for attr, value in kwargs.items():
+            setattr(instance, attr, value)
+        instance.full_clean()
+        instance.save()
+        return instance
+
+
+class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSerializer):
+    company_id = serializers.UUIDField(write_only=True, required=False)
+    vesting_schedule_plan = VestingScheduleSerializer(read_only=True)
+    vesting_progress_percent = serializers.SerializerMethodField()
+    vested_options = serializers.SerializerMethodField()
+    unvested_options = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ESOPGrant
+        fields = (
+            "id",
+            "company_id",
+            "employee_name",
+            "employee_email",
+            "grant_date",
+            "cliff_date",
+            "total_options",
+            "strike_price",
+            "fair_market_value",
+            "exercise_window_days",
+            "vesting_schedule",
+            "vesting_schedule_plan",
+            "vesting_progress_percent",
+            "vested_options",
+            "unvested_options",
+            "grant_type",
+            "status",
+            "notes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate_company_id(self, value):
+        self._company = self._get_company(value)
+        return value
+
+    def _get_vesting_schedule(self, schedule_id, company):
+        request = self.context.get("request")
+        qs = VestingSchedule.objects.filter(company=company)
+        if request and getattr(request, "user", None):
+            qs = qs.filter(company__owner=request.user)
+        try:
+            return qs.get(id=schedule_id)
+        except VestingSchedule.DoesNotExist as exc:
+            raise serializers.ValidationError(
+                {"vesting_schedule": "Vesting schedule not found for this company."}
+            ) from exc
+
+    def _resolve_vesting_schedule(self, schedule_value, company):
+        if schedule_value in (None, ""):
+            return schedule_value, None
+        try:
+            schedule_uuid = uuid.UUID(str(schedule_value))
+        except (ValueError, TypeError):
+            return schedule_value, None
+        schedule = self._get_vesting_schedule(schedule_uuid, company)
+        return schedule.name, schedule
+
+    def create(self, validated_data, **kwargs):
+        company_id = validated_data.pop("company_id", None)
+        company = getattr(self, "_company", None)
+        if company_id and not company:
+            company = self._get_company(company_id)
+        if not company:
+            raise serializers.ValidationError({"company_id": "Company is required."})
+        schedule_value = validated_data.get("vesting_schedule")
+        schedule_text, schedule = self._resolve_vesting_schedule(
+            schedule_value, company
+        )
+        if schedule_text is not None and schedule_value is not None:
+            validated_data["vesting_schedule"] = schedule_text
+        return ESOPGrant.objects.create(
+            company=company,
+            vesting_schedule_plan=schedule,
+            **validated_data,
+            **kwargs,
+        )
+
+    def update(self, instance, validated_data):
+        company_id = validated_data.pop("company_id", None)
+        if company_id:
+            instance.company = self._get_company(company_id)
+        if "vesting_schedule" in validated_data:
+            schedule_value = validated_data["vesting_schedule"]
+            schedule_text, schedule = self._resolve_vesting_schedule(
+                schedule_value, instance.company
+            )
+            instance.vesting_schedule_plan = schedule
+            validated_data["vesting_schedule"] = schedule_text
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.full_clean()
+        instance.save()
+        return instance
+
+    def _get_vesting_metrics(self, obj):
+        progress, vested, unvested = obj.calculate_vesting_metrics()
+        return progress, vested, unvested
+
+    def get_vesting_progress_percent(self, obj):
+        return self._get_vesting_metrics(obj)[0]
+
+    def get_vested_options(self, obj):
+        return self._get_vesting_metrics(obj)[1]
+
+    def get_unvested_options(self, obj):
+        return self._get_vesting_metrics(obj)[2]
+
+
+class VestingScheduleDropdownSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VestingSchedule
+        fields = ("id", "name")
