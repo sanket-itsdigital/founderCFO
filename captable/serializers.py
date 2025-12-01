@@ -25,6 +25,16 @@ class CompanyScopedSerializerMixin:
             return Company.objects.get(id=value, owner=request.user)
         except Company.DoesNotExist as exc:  # pragma: no cover - defensive
             raise serializers.ValidationError("Invalid company.") from exc
+    
+    def _resolve_company_instance(self, company_id=None):
+        """Resolve company from UUID, string, or Company instance."""
+        candidate = company_id or getattr(self, "_company", None)
+        
+        if isinstance(candidate, Company):
+            return candidate
+        if candidate:
+            return self._get_company(str(candidate))
+        return None
 
 
 class ShareholderSerializer(CompanyScopedSerializerMixin, serializers.ModelSerializer):
