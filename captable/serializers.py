@@ -49,9 +49,7 @@ class ShareholderSerializer(CompanyScopedSerializerMixin, serializers.ModelSeria
 
     def create(self, validated_data, **kwargs):
         company_id = validated_data.pop("company_id", None)
-        company = getattr(self, "_company", None)
-        if company_id and not company:
-            company = self._get_company(company_id)
+        company = self._resolve_company_instance(company_id)
         if not company:
             raise serializers.ValidationError({"company_id": "Company is required."})
         return Shareholder.objects.create(company=company, **validated_data, **kwargs)
@@ -494,7 +492,7 @@ class VestingScheduleSerializer(
     def update(self, instance, validated_data, **kwargs):
         company_id = validated_data.pop("company_id", None)
         if company_id:
-            instance.company = self._get_company(company_id)
+            instance.company = self._resolve_company_instance(company_id)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         for attr, value in kwargs.items():
@@ -592,6 +590,22 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
         self._company = self._get_company(value)
         return value
 
+    def _resolve_company_instance(self, company_id=None):
+        """
+        Ensure we always work with a Company instance.
+        Accepts UUID/str/Company or falls back to self._company.
+        """
+        company = None
+        candidate = company_id or getattr(self, "_company", None)
+
+        if isinstance(candidate, Company):
+            company = candidate
+        elif candidate:
+            # Accept UUID objects or strings
+            company = self._get_company(str(candidate))
+
+        return company
+
     def _get_vesting_schedule(self, schedule_id, company):
         request = self.context.get("request")
         qs = VestingSchedule.objects.filter(company=company)
@@ -620,14 +634,7 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
             super().validate(attrs) if hasattr(super(), "validate") else attrs
         )
 
-        company_id = attrs.get("company_id") or getattr(self, "_company", None)
-        if company_id:
-            if isinstance(company_id, str):
-                company = self._get_company(company_id)
-            else:
-                company = company_id
-        else:
-            company = getattr(self, "_company", None)
+        company = self._resolve_company_instance(attrs.get("company_id"))
 
         if not company:
             # Will be validated in create method
@@ -684,7 +691,7 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
         # Validate against pool size
         pool_size = company.esop_pool_size or 0
         total_options = validated_data.get("total_options", 0)
-        
+
         # Validation 1: If pool size is 0, cannot assign grants
         if pool_size == 0:
             raise serializers.ValidationError(
@@ -695,7 +702,7 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
                     )
                 }
             )
-        
+
         # Validation 2: Pool size must be >= total grants (wasted + unwasted)
         if total_options:
             # Calculate total from ALL grants (all statuses: Active, Cancelled, Exercised)
@@ -737,7 +744,7 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
 
         company = instance.company
         pool_size = company.esop_pool_size or 0
-        
+
         # Validation 1: If pool size is 0, cannot assign grants
         if pool_size == 0:
             raise serializers.ValidationError(
@@ -748,13 +755,13 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
                     )
                 }
             )
-        
+
         # Validation 2: Pool size must be >= total grants (wasted + unwasted)
         if total_options:
             # Calculate total from ALL grants (all statuses: Active, Cancelled, Exercised)
-            existing_grants = ESOPGrant.objects.filter(
-                company=company
-            ).exclude(id=instance.id)
+            existing_grants = ESOPGrant.objects.filter(company=company).exclude(
+                id=instance.id
+            )
             total_granted = sum(grant.total_options for grant in existing_grants)
             if total_granted + total_options > pool_size:
                 raise serializers.ValidationError(
