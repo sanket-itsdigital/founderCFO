@@ -43,6 +43,8 @@ class ShareholderSerializer(CompanyScopedSerializerMixin, serializers.ModelSeria
         )
         read_only_fields = ("id", "created_at")
 
+
+
     def validate_company_id(self, value):
         self._company = self._get_company(value)
         return value
@@ -119,10 +121,48 @@ class CapTableEventDocumentUploadSerializer(serializers.Serializer):
 class CapitalizationTableSerializer(serializers.ModelSerializer):
     event_id = serializers.UUIDField(write_only=True)
     shareholder_id = serializers.UUIDField(write_only=True)
-    shareholder = ShareholderSerializer(read_only=True)
+    shareholder = serializers.SerializerMethodField()
     total_invested = serializers.SerializerMethodField()
     cumulative_shares = serializers.SerializerMethodField()
     ownership_percentage = serializers.SerializerMethodField()
+    
+    def get_shareholder(self, obj):
+        """Return shareholder with ownership percentage."""
+        shareholder_data = ShareholderSerializer(obj.shareholder, context=self.context).data
+        
+        # Calculate ownership percentage for this shareholder
+        company = obj.company
+        shareholder = obj.shareholder
+        event_date = obj.event.date
+        
+        # Get cumulative shares for this shareholder
+        shareholder_shares = Decimal("0")
+        shareholder_transactions = CapitalizationTable.objects.filter(
+            company=company,
+            shareholder=shareholder,
+            event__date__lte=event_date
+        )
+        for tx in shareholder_transactions:
+            shareholder_shares += tx.shares_issued or Decimal("0")
+        
+        # Get total issued shares up to this event
+        total_issued = Decimal("0")
+        all_transactions = CapitalizationTable.objects.filter(
+            company=company,
+            event__date__lte=event_date
+        )
+        for tx in all_transactions:
+            total_issued += tx.shares_issued or Decimal("0")
+        
+        # Calculate ownership percentage
+        ownership_pct = 0.0
+        if total_issued > 0:
+            ownership_pct = float((shareholder_shares / total_issued) * Decimal("100"))
+        
+        # Add ownership percentage to shareholder data
+        shareholder_data["ownership_percentage"] = round(ownership_pct, 2)
+        
+        return shareholder_data
 
     class Meta:
         model = CapitalizationTable
@@ -294,72 +334,13 @@ class CapTableEventListSerializer(serializers.ModelSerializer):
 class CapTableEventDetailSerializer(CapTableEventListSerializer):
     documents = CapTableEventDocumentSerializer(many=True, read_only=True)
     transactions = CapitalizationTableSerializer(many=True, read_only=True)
-    shareholder_summary = serializers.SerializerMethodField()
 
     class Meta(CapTableEventListSerializer.Meta):
         fields = CapTableEventListSerializer.Meta.fields + (
             "notes",
             "documents",
             "transactions",
-            "shareholder_summary",
         )
-
-    def get_shareholder_summary(self, obj):
-        """Get shareholder summary for this event, including cumulative ownership."""
-        company = obj.company
-        event_date = obj.date
-        
-        # Get all transactions up to and including this event
-        all_transactions = CapitalizationTable.objects.filter(
-            company=company,
-            event__date__lte=event_date
-        ).select_related("shareholder", "event")
-        
-        # Calculate cumulative shares per shareholder
-        shareholder_totals = {}
-        total_issued = Decimal("0")
-        
-        for tx in all_transactions:
-            shareholder = tx.shareholder
-            if not shareholder:
-                continue
-            
-            shareholder_id = shareholder.id
-            if shareholder_id not in shareholder_totals:
-                shareholder_totals[shareholder_id] = {
-                    "shareholder_id": str(shareholder_id),
-                    "name": shareholder.name,
-                    "investor_type": shareholder.investor_type,
-                    "email": shareholder.email,
-                    "total_shares": Decimal("0"),
-                    "total_invested": Decimal("0"),
-                }
-            
-            shareholder_totals[shareholder_id]["total_shares"] += tx.shares_issued or Decimal("0")
-            shareholder_totals[shareholder_id]["total_invested"] += tx.amount or Decimal("0")
-            total_issued += tx.shares_issued or Decimal("0")
-        
-        # Calculate ownership percentages and format response
-        summary_list = []
-        for data in shareholder_totals.values():
-            ownership_pct = 0.0
-            if total_issued > 0:
-                ownership_pct = float((data["total_shares"] / total_issued) * Decimal("100"))
-            
-            summary_list.append({
-                "shareholder_id": data["shareholder_id"],
-                "name": data["name"],
-                "investor_type": data["investor_type"],
-                "email": data["email"],
-                "total_shares": float(data["total_shares"]),
-                "total_invested": float(data["total_invested"]),
-                "ownership_percentage": round(ownership_pct, 2),
-            })
-        
-        # Sort by ownership percentage descending
-        summary_list.sort(key=lambda x: x["ownership_percentage"], reverse=True)
-        
-        return summary_list
 
 
 class CapTableEventSerializer(
