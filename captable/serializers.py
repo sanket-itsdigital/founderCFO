@@ -678,6 +678,27 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
                     }
                 )
 
+        # Validation 3: Unique grant per employee per grant date
+        employee_email = attrs.get("employee_email") or getattr(instance, "employee_email", None)
+        grant_date = attrs.get("grant_date") or getattr(instance, "grant_date", None)
+        if company and employee_email and grant_date:
+            duplicate_qs = ESOPGrant.objects.filter(
+                company=company,
+                employee_email=employee_email,
+                grant_date=grant_date,
+            )
+            if instance:
+                duplicate_qs = duplicate_qs.exclude(id=instance.id)
+            if duplicate_qs.exists():
+                raise serializers.ValidationError(
+                    {
+                        "grant_date": (
+                            "An ESOP grant for this employee and grant date already exists. "
+                            "Please pick a different date or update the existing grant."
+                        )
+                    }
+                )
+
         return validated_data
 
     def create(self, validated_data, **kwargs):
