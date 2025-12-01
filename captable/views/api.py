@@ -861,13 +861,15 @@ class ConfigureESOPPoolView(APIView):
                 pool_percentage = Decimal("0")
 
         # Validate that total granted doesn't exceed new pool size
+        # Check ALL grants (wasted + unwasted: Active, Cancelled, Exercised)
         if pool_size is not None:
-            esop_grants = ESOPGrant.objects.filter(company=company, status="Active")
+            esop_grants = ESOPGrant.objects.filter(company=company)
             total_granted = sum(grant.total_options for grant in esop_grants)
             if total_granted > pool_size:
                 return Response(
                     {
-                        "detail": f"Total granted options ({total_granted}) exceeds new pool size ({pool_size})"
+                        "detail": f"Total granted options ({total_granted}) exceeds new pool size ({pool_size}). "
+                        f"Pool size must be >= total grants (wasted + unwasted)."
                     },
                     status=400,
                 )

@@ -639,21 +639,34 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
         if total_options is None and instance:
             total_options = instance.total_options
 
-        if total_options and company.esop_pool_size:
-            # Calculate total granted options (excluding current grant if updating)
-            existing_grants = ESOPGrant.objects.filter(company=company, status="Active")
+        # Validation 1: If pool size is 0 or None, cannot assign grants
+        pool_size = company.esop_pool_size or 0
+        if pool_size == 0:
+            raise serializers.ValidationError(
+                {
+                    "total_options": (
+                        "Cannot assign grants when ESOP pool size is 0. "
+                        "Please configure the ESOP pool size first."
+                    )
+                }
+            )
+
+        # Validation 2: Pool size must be >= total grants (wasted + unwasted)
+        if total_options:
+            # Calculate total granted options from ALL grants (all statuses: Active, Cancelled, Exercised)
+            existing_grants = ESOPGrant.objects.filter(company=company)
             if instance:
                 existing_grants = existing_grants.exclude(id=instance.id)
 
             total_granted = sum(grant.total_options for grant in existing_grants)
             new_total = total_granted + total_options
 
-            if new_total > company.esop_pool_size:
+            if new_total > pool_size:
                 raise serializers.ValidationError(
                     {
                         "total_options": (
                             f"Total granted options ({new_total}) would exceed ESOP pool size "
-                            f"({company.esop_pool_size}). Available: {company.esop_pool_size - total_granted}"
+                            f"({pool_size}). Available: {pool_size - total_granted}"
                         )
                     }
                 )
@@ -669,17 +682,32 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
             raise serializers.ValidationError({"company_id": "Company is required."})
 
         # Validate against pool size
+        pool_size = company.esop_pool_size or 0
         total_options = validated_data.get("total_options", 0)
-        if total_options and company.esop_pool_size:
-            existing_grants = ESOPGrant.objects.filter(company=company, status="Active")
+        
+        # Validation 1: If pool size is 0, cannot assign grants
+        if pool_size == 0:
+            raise serializers.ValidationError(
+                {
+                    "total_options": (
+                        "Cannot assign grants when ESOP pool size is 0. "
+                        "Please configure the ESOP pool size first."
+                    )
+                }
+            )
+        
+        # Validation 2: Pool size must be >= total grants (wasted + unwasted)
+        if total_options:
+            # Calculate total from ALL grants (all statuses: Active, Cancelled, Exercised)
+            existing_grants = ESOPGrant.objects.filter(company=company)
             total_granted = sum(grant.total_options for grant in existing_grants)
-            if total_granted + total_options > company.esop_pool_size:
+            if total_granted + total_options > pool_size:
                 raise serializers.ValidationError(
                     {
                         "total_options": (
                             f"Total granted options ({total_granted + total_options}) would exceed "
-                            f"ESOP pool size ({company.esop_pool_size}). Available: "
-                            f"{company.esop_pool_size - total_granted}"
+                            f"ESOP pool size ({pool_size}). Available: "
+                            f"{pool_size - total_granted}"
                         )
                     }
                 )
@@ -708,18 +736,33 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
             total_options = instance.total_options
 
         company = instance.company
-        if total_options and company.esop_pool_size:
+        pool_size = company.esop_pool_size or 0
+        
+        # Validation 1: If pool size is 0, cannot assign grants
+        if pool_size == 0:
+            raise serializers.ValidationError(
+                {
+                    "total_options": (
+                        "Cannot assign grants when ESOP pool size is 0. "
+                        "Please configure the ESOP pool size first."
+                    )
+                }
+            )
+        
+        # Validation 2: Pool size must be >= total grants (wasted + unwasted)
+        if total_options:
+            # Calculate total from ALL grants (all statuses: Active, Cancelled, Exercised)
             existing_grants = ESOPGrant.objects.filter(
-                company=company, status="Active"
+                company=company
             ).exclude(id=instance.id)
             total_granted = sum(grant.total_options for grant in existing_grants)
-            if total_granted + total_options > company.esop_pool_size:
+            if total_granted + total_options > pool_size:
                 raise serializers.ValidationError(
                     {
                         "total_options": (
                             f"Total granted options ({total_granted + total_options}) would exceed "
-                            f"ESOP pool size ({company.esop_pool_size}). Available: "
-                            f"{company.esop_pool_size - total_granted}"
+                            f"ESOP pool size ({pool_size}). Available: "
+                            f"{pool_size - total_granted}"
                         )
                     }
                 )
