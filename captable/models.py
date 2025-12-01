@@ -285,3 +285,55 @@ class ESOPGrant(BaseModel):
             Decimal("0.1"), rounding=ROUND_HALF_UP
         )
         return progress_percent, vested_options, unvested_options
+
+
+class ESOPPoolHistory(BaseModel):
+    """Track ESOP pool changes over time."""
+    company = models.ForeignKey(
+        "accounts.Company",
+        on_delete=models.CASCADE,
+        related_name="esop_pool_history",
+    )
+    event_type = models.CharField(
+        max_length=50,
+        choices=[
+            ("POOL_CREATED", "Pool Created"),
+            ("POOL_EXPANDED", "Pool Expanded"),
+            ("POOL_REDUCED", "Pool Reduced"),
+        ],
+        default="POOL_CREATED",
+    )
+    event_date = models.DateField()
+    pool_size_before = models.PositiveIntegerField(default=0)
+    pool_size_after = models.PositiveIntegerField(default=0)
+    pool_percentage_before = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("0")
+    )
+    pool_percentage_after = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("0")
+    )
+    change_amount = models.IntegerField(
+        help_text="Change in pool size (positive for increase, negative for decrease)"
+    )
+    description = models.TextField(
+        blank=True, help_text="Description of the change"
+    )
+    notes = models.TextField(
+        blank=True, null=True, help_text="Additional notes about the change"
+    )
+
+    class Meta:
+        db_table = "captable_esop_pool_history"
+        verbose_name = "ESOP Pool History"
+        verbose_name_plural = "ESOP Pool Histories"
+        ordering = ["-event_date", "-created_at"]
+
+    def __str__(self):
+        return f"{self.company.name} - {self.event_type} on {self.event_date}"
+
+    def save(self, *args, **kwargs):
+        """Calculate change_amount if not provided."""
+        if not hasattr(self, "_change_calculated"):
+            self.change_amount = self.pool_size_after - self.pool_size_before
+            self._change_calculated = True
+        super().save(*args, **kwargs)

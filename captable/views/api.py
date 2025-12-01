@@ -15,6 +15,7 @@ from captable.models import (
     CapTableEvents,
     CapitalizationTable,
     ESOPGrant,
+    ESOPPoolHistory,
     Shareholder,
     VestingSchedule,
 )
@@ -871,6 +872,10 @@ class ConfigureESOPPoolView(APIView):
                     status=400,
                 )
 
+        # Store old values for history
+        old_pool_size = company.esop_pool_size or 0
+        old_pool_percentage = company.esop_pool_percentage or Decimal("0")
+
         # Update company
         if pool_percentage is not None:
             company.esop_pool_percentage = pool_percentage
@@ -883,6 +888,55 @@ class ConfigureESOPPoolView(APIView):
             company.full_clean()
             company.updated_by = request.user
             company.save()
+
+            # Record history if pool size or percentage changed
+            new_pool_size = company.esop_pool_size or 0
+            new_pool_percentage = company.esop_pool_percentage or Decimal("0")
+
+            if (
+                old_pool_size != new_pool_size
+                or old_pool_percentage != new_pool_percentage
+            ):
+                # Determine event type
+                if old_pool_size == 0 and new_pool_size > 0:
+                    event_type = "POOL_CREATED"
+                    description = (
+                        f"Pool created to {new_pool_size:,} options "
+                        f"({new_pool_percentage}% of authorized shares)"
+                    )
+                elif new_pool_size > old_pool_size:
+                    event_type = "POOL_EXPANDED"
+                    change = new_pool_size - old_pool_size
+                    description = (
+                        f"ESOP pool expansion to {new_pool_percentage}% "
+                        f"(benchmark: 10-15% post-Series A)"
+                    )
+                elif new_pool_size < old_pool_size:
+                    event_type = "POOL_REDUCED"
+                    change = new_pool_size - old_pool_size
+                    description = f"ESOP pool reduced by {abs(change):,} options"
+                else:
+                    event_type = "POOL_EXPANDED"  # Default for percentage changes
+                    description = (
+                        f"ESOP pool updated to {new_pool_percentage}% "
+                        f"({new_pool_size:,} options)"
+                    )
+
+                # Create history record
+                ESOPPoolHistory.objects.create(
+                    company=company,
+                    event_type=event_type,
+                    event_date=timezone.now().date(),
+                    pool_size_before=old_pool_size,
+                    pool_size_after=new_pool_size,
+                    pool_percentage_before=old_pool_percentage,
+                    pool_percentage_after=new_pool_percentage,
+                    change_amount=new_pool_size - old_pool_size,
+                    description=description,
+                    notes=notes or "",
+                    created_by=request.user,
+                    updated_by=request.user,
+                )
         except Exception as e:
             return Response({"detail": str(e)}, status=400)
 
@@ -894,3 +948,184 @@ class ConfigureESOPPoolView(APIView):
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+
+
+class ESOPPoolHistoryView(APIView):
+    """Combined API endpoint for Pool Utilization Over Time and Pool Events History."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        company_id = request.query_params.get("company_id")
+        if not company_id:
+            return Response({"detail": "company_id is required"}, status=400)
+
+        try:
+            company = Company.objects.get(id=company_id, owner=request.user)
+        except Company.DoesNotExist:
+            return Response({"detail": "Company not found"}, status=404)
+
+        # Get all pool history events ordered by date
+        history_events = ESOPPoolHistory.objects.filter(company=company).order_by(
+            "event_date", "created_at"
+        )
+
+        # Get all grant dates to track granted options over time
+        grants = ESOPGrant.objects.filter(company=company, status="Active").order_by(
+            "grant_date"
+        )
+
+        # Build time series data for utilization graph
+        from datetime import datetime, timedelta
+
+        # Start from the first pool event or first grant, whichever is earlier
+        if history_events.exists():
+            first_event_date = history_events.first().event_date
+            first_grant_date = grants.first().grant_date if grants.exists() else None
+            if first_grant_date:
+                start_date = min(first_event_date, first_grant_date)
+            else:
+                start_date = first_event_date
+        elif grants.exists():
+            start_date = grants.first().grant_date
+        else:
+            # No history, use current pool size
+            start_date = timezone.now().date()
+
+        # Current date
+        end_date = timezone.now().date()
+
+        # Create a sorted list of all significant dates (pool changes and grant dates)
+        significant_dates = set()
+
+        # Add pool history event dates
+        for event in history_events:
+            significant_dates.add(event.event_date)
+
+        # Add grant dates
+        for grant in grants:
+            significant_dates.add(grant.grant_date)
+
+        # Add start and end dates
+        significant_dates.add(start_date)
+        significant_dates.add(end_date)
+
+        # Sort dates
+        sorted_dates = sorted(significant_dates)
+
+        # Build timeline: pool size at each date
+        pool_size_at_date = {}
+        for event in history_events:
+            # Pool size remains at this value until next change
+            pool_size_at_date[event.event_date] = event.pool_size_after
+
+        # Get current pool size and current granted options
+        current_pool_size = company.esop_pool_size or 0
+        current_granted_total = sum(grant.total_options for grant in grants)
+
+        # Always ensure current date is included with current values
+        pool_size_at_date[end_date] = current_pool_size
+        if end_date not in sorted_dates:
+            sorted_dates.append(end_date)
+            sorted_dates = sorted(sorted_dates)
+
+        # If no history events, use current pool size for all dates
+        if not history_events.exists():
+            for date in sorted_dates:
+                pool_size_at_date[date] = current_pool_size
+
+        # Build timeline: granted options by date
+        granted_by_date = {}
+        for grant in grants:
+            grant_date = grant.grant_date
+            if grant_date not in granted_by_date:
+                granted_by_date[grant_date] = 0
+            granted_by_date[grant_date] += grant.total_options
+
+        # Generate data points for significant dates
+        data_points = []
+        tracking_pool_size = 0
+        cumulative_granted = 0
+
+        for date in sorted_dates:
+            # Update pool size if there's a change on this date
+            if date in pool_size_at_date:
+                tracking_pool_size = pool_size_at_date[date]
+
+            # Add granted options for this date (only for historical dates)
+            if date in granted_by_date and date != end_date:
+                cumulative_granted += granted_by_date[date]
+
+            # For current date, always use actual current values
+            if date == end_date:
+                # Use current pool size and current total granted
+                tracking_pool_size = current_pool_size
+                cumulative_granted = current_granted_total
+
+            # Calculate available
+            available = tracking_pool_size - cumulative_granted
+
+            data_points.append(
+                {
+                    "date": date.isoformat(),
+                    "pool_size": tracking_pool_size,
+                    "granted": cumulative_granted,
+                    "available": max(0, available),  # Ensure non-negative
+                }
+            )
+
+        # Only show data points for actual events/changes, no monthly interpolation
+        # Ensure today's date is included with current values if not already present
+        today = timezone.now().date()
+        today_str = today.isoformat()
+
+        # Check if today is already in the data points
+        has_today = any(dp["date"] == today_str for dp in data_points)
+
+        if not has_today:
+            # Add today's data point with current values
+            data_points.append(
+                {
+                    "date": today_str,
+                    "pool_size": current_pool_size,
+                    "granted": current_granted_total,
+                    "available": max(0, current_pool_size - current_granted_total),
+                }
+            )
+            # Sort by date to maintain chronological order
+            data_points.sort(key=lambda x: x["date"])
+
+        # Build events history
+        events_history = []
+        for event in history_events.order_by("-event_date", "-created_at"):
+            events_history.append(
+                {
+                    "id": str(event.id),
+                    "event_type": event.event_type,
+                    "date": event.event_date.isoformat(),
+                    "description": event.description,
+                    "before": event.pool_size_before,
+                    "change": event.change_amount,
+                    "after": event.pool_size_after,
+                    "pool_percentage_before": float(event.pool_percentage_before),
+                    "pool_percentage_after": float(event.pool_percentage_after),
+                    "notes": event.notes or "",
+                    "created_at": (
+                        event.created_at.isoformat() if event.created_at else None
+                    ),
+                }
+            )
+
+        return Response(
+            {
+                "utilization_over_time": {
+                    "title": "Pool Utilization Over Time",
+                    "description": "Track pool size, granted options, and available capacity",
+                    "data_points": data_points,
+                },
+                "events_history": {
+                    "events": events_history,
+                    "total_events": len(events_history),
+                },
+            }
+        )

@@ -5,6 +5,7 @@ from captable.models import (
     CapTableEvents,
     CapitalizationTable,
     ESOPGrant,
+    ESOPPoolHistory,
     Shareholder,
     VestingSchedule,
 )
@@ -89,3 +90,19 @@ class ESOPGrantAdmin(admin.ModelAdmin):
     list_filter = ("grant_type", "status", "company")
     search_fields = ("employee_name", "employee_email", "company__name")
     ordering = ("-grant_date",)
+
+
+@admin.register(ESOPPoolHistory)
+class ESOPPoolHistoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "company",
+        "event_type",
+        "event_date",
+        "pool_size_before",
+        "pool_size_after",
+        "change_amount",
+        "created_at",
+    )
+    list_filter = ("event_type", "company")
+    search_fields = ("company__name", "description", "notes")
+    ordering = ("-event_date", "-created_at")

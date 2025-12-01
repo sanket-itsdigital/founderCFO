@@ -15,6 +15,7 @@ from captable.views.api import (
     EmployeeESOPDirectoryView,
     ESOPGrantDetailView,
     ESOPGrantListCreateView,
+    ESOPPoolHistoryView,
     ESOPPoolOverviewView,
     ShareHolderListView,
     ShareholderDetailView,
@@ -119,5 +120,10 @@ urlpatterns = [
         "employees/esop-details/",
         EmployeeESOPDetailView.as_view(),
         name="employee-esop-details",
+    ),
+    path(
+        "esop-pool/history/",
+        ESOPPoolHistoryView.as_view(),
+        name="esop-pool-history",
     ),
 ]
