@@ -430,6 +430,8 @@ class VestingScheduleSerializer(
     CompanyScopedSerializerMixin, serializers.ModelSerializer
 ):
     company_id = serializers.UUIDField(write_only=True, required=False)
+    employees_count = serializers.SerializerMethodField()
+    linked_employees = serializers.SerializerMethodField()
 
     class Meta:
         model = VestingSchedule
@@ -445,10 +447,18 @@ class VestingScheduleSerializer(
             "single_trigger",
             "double_trigger",
             "notes",
+            "employees_count",
+            "linked_employees",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "created_at", "updated_at")
+        read_only_fields = (
+            "id",
+            "created_at",
+            "updated_at",
+            "employees_count",
+            "linked_employees",
+        )
 
     def validate_company_id(self, value):
         self._company = self._get_company(value)
@@ -492,6 +502,57 @@ class VestingScheduleSerializer(
         instance.full_clean()
         instance.save()
         return instance
+
+    def get_employees_count(self, obj):
+        """Count unique employees using this vesting schedule."""
+        if not obj.pk:
+            return 0
+        return (
+            obj.esop_grants.filter(status="Active")
+            .values("employee_email")
+            .distinct()
+            .count()
+        )
+
+    def get_linked_employees(self, obj):
+        """Get list of employees linked to this vesting schedule with their grant details."""
+        if not obj.pk:
+            return []
+
+        grants = obj.esop_grants.filter(status="Active").select_related()
+        employee_data = {}
+
+        for grant in grants:
+            email = grant.employee_email
+            if email not in employee_data:
+                progress, vested, unvested = grant.calculate_vesting_metrics()
+                employee_data[email] = {
+                    "employee_name": grant.employee_name,
+                    "employee_email": email,
+                    "total_options": 0,
+                    "vested_options": 0,
+                    "unvested_options": 0,
+                    "vested_percentage": float(progress),
+                }
+
+            # Aggregate options across all grants for this employee
+            employee_data[email]["total_options"] += grant.total_options
+            _, vested, unvested = grant.calculate_vesting_metrics()
+            employee_data[email]["vested_options"] += int(vested)
+            employee_data[email]["unvested_options"] += int(unvested)
+
+        # Recalculate vested percentage after aggregation
+        for email, data in employee_data.items():
+            if data["total_options"] > 0:
+                percentage = (
+                    (Decimal(data["vested_options"]) / Decimal(data["total_options"]))
+                    * Decimal("100")
+                ).quantize(Decimal("0.1"))
+                data["vested_percentage"] = float(percentage)
+            else:
+                data["vested_percentage"] = 0.0
+
+        return list(employee_data.values())
 
 
 class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSerializer):
@@ -553,6 +614,52 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
         schedule = self._get_vesting_schedule(schedule_uuid, company)
         return schedule.name, schedule
 
+    def validate(self, attrs):
+        """Validate that total grants don't exceed ESOP pool size."""
+        validated_data = (
+            super().validate(attrs) if hasattr(super(), "validate") else attrs
+        )
+
+        company_id = attrs.get("company_id") or getattr(self, "_company", None)
+        if company_id:
+            if isinstance(company_id, str):
+                company = self._get_company(company_id)
+            else:
+                company = company_id
+        else:
+            company = getattr(self, "_company", None)
+
+        if not company:
+            # Will be validated in create method
+            return validated_data
+
+        # Check if this is an update
+        instance = getattr(self, "instance", None)
+        total_options = attrs.get("total_options")
+        if total_options is None and instance:
+            total_options = instance.total_options
+
+        if total_options and company.esop_pool_size:
+            # Calculate total granted options (excluding current grant if updating)
+            existing_grants = ESOPGrant.objects.filter(company=company, status="Active")
+            if instance:
+                existing_grants = existing_grants.exclude(id=instance.id)
+
+            total_granted = sum(grant.total_options for grant in existing_grants)
+            new_total = total_granted + total_options
+
+            if new_total > company.esop_pool_size:
+                raise serializers.ValidationError(
+                    {
+                        "total_options": (
+                            f"Total granted options ({new_total}) would exceed ESOP pool size "
+                            f"({company.esop_pool_size}). Available: {company.esop_pool_size - total_granted}"
+                        )
+                    }
+                )
+
+        return validated_data
+
     def create(self, validated_data, **kwargs):
         company_id = validated_data.pop("company_id", None)
         company = getattr(self, "_company", None)
@@ -560,6 +667,23 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
             company = self._get_company(company_id)
         if not company:
             raise serializers.ValidationError({"company_id": "Company is required."})
+
+        # Validate against pool size
+        total_options = validated_data.get("total_options", 0)
+        if total_options and company.esop_pool_size:
+            existing_grants = ESOPGrant.objects.filter(company=company, status="Active")
+            total_granted = sum(grant.total_options for grant in existing_grants)
+            if total_granted + total_options > company.esop_pool_size:
+                raise serializers.ValidationError(
+                    {
+                        "total_options": (
+                            f"Total granted options ({total_granted + total_options}) would exceed "
+                            f"ESOP pool size ({company.esop_pool_size}). Available: "
+                            f"{company.esop_pool_size - total_granted}"
+                        )
+                    }
+                )
+
         schedule_value = validated_data.get("vesting_schedule")
         schedule_text, schedule = self._resolve_vesting_schedule(
             schedule_value, company
@@ -577,6 +701,29 @@ class ESOPGrantSerializer(CompanyScopedSerializerMixin, serializers.ModelSeriali
         company_id = validated_data.pop("company_id", None)
         if company_id:
             instance.company = self._get_company(company_id)
+
+        # Validate against pool size
+        total_options = validated_data.get("total_options")
+        if total_options is None:
+            total_options = instance.total_options
+
+        company = instance.company
+        if total_options and company.esop_pool_size:
+            existing_grants = ESOPGrant.objects.filter(
+                company=company, status="Active"
+            ).exclude(id=instance.id)
+            total_granted = sum(grant.total_options for grant in existing_grants)
+            if total_granted + total_options > company.esop_pool_size:
+                raise serializers.ValidationError(
+                    {
+                        "total_options": (
+                            f"Total granted options ({total_granted + total_options}) would exceed "
+                            f"ESOP pool size ({company.esop_pool_size}). Available: "
+                            f"{company.esop_pool_size - total_granted}"
+                        )
+                    }
+                )
+
         if "vesting_schedule" in validated_data:
             schedule_value = validated_data["vesting_schedule"]
             schedule_text, schedule = self._resolve_vesting_schedule(
@@ -608,3 +755,73 @@ class VestingScheduleDropdownSerializer(serializers.ModelSerializer):
     class Meta:
         model = VestingSchedule
         fields = ("id", "name")
+
+
+class EmployeeESOPDirectorySerializer(serializers.Serializer):
+    """Serializer for Employee ESOP Directory listing."""
+
+    employee_name = serializers.CharField()
+    employee_email = serializers.EmailField()
+    grants_count = serializers.IntegerField()
+    total_options = serializers.IntegerField()
+    vested_options = serializers.IntegerField()
+    unvested_options = serializers.IntegerField()
+    vesting_progress_percent = serializers.DecimalField(max_digits=5, decimal_places=2)
+
+
+class EmployeeGrantDetailSerializer(serializers.ModelSerializer):
+    """Serializer for individual grant details in employee view."""
+
+    vesting_progress_percent = serializers.SerializerMethodField()
+    vested_options = serializers.SerializerMethodField()
+    unvested_options = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ESOPGrant
+        fields = (
+            "id",
+            "grant_date",
+            "total_options",
+            "vested_options",
+            "unvested_options",
+            "strike_price",
+            "status",
+            "vesting_progress_percent",
+        )
+
+    def get_vesting_progress_percent(self, obj):
+        progress, _, _ = obj.calculate_vesting_metrics()
+        return float(progress)
+
+    def get_vested_options(self, obj):
+        _, vested, _ = obj.calculate_vesting_metrics()
+        return int(vested)
+
+    def get_unvested_options(self, obj):
+        _, _, unvested = obj.calculate_vesting_metrics()
+        return int(unvested)
+
+
+class EmployeeESOPDetailSerializer(serializers.Serializer):
+    """Serializer for Employee ESOP Details (Summary, Grants, Exercise History)."""
+
+    employee_name = serializers.CharField()
+    employee_email = serializers.EmailField()
+
+    # Summary fields
+    total_options = serializers.IntegerField()
+    grants_count = serializers.IntegerField()
+    total_vested_options = serializers.IntegerField()
+    total_unvested_options = serializers.IntegerField()
+    vested_percentage = serializers.DecimalField(max_digits=5, decimal_places=2)
+    exercisable_options = serializers.IntegerField()
+    total_exercised = serializers.IntegerField()
+    exercised_transactions_count = serializers.IntegerField()
+
+    # Grants list
+    grants = EmployeeGrantDetailSerializer(many=True)
+
+    # Exercise history (for future implementation)
+    exercise_history = serializers.ListField(
+        child=serializers.DictField(), default=list
+    )

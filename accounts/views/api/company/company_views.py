@@ -4,6 +4,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from accounts.models import Company
 from accounts.serializers import CompanySerializer
 
 
@@ -45,8 +46,56 @@ class CompanyCreateView(generics.CreateAPIView):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-        
+
         return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+
+class CompanyUpdateView(generics.UpdateAPIView):
+    """Update company details including capital structure fields."""
+
+    serializer_class = CompanySerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = "id"
+    http_method_names = ["patch", "put"]
+
+    def get_queryset(self):
+        """Only allow updating companies owned by the user."""
+        return Company.objects.filter(owner=self.request.user)
+
+    @swagger_auto_schema(
+        operation_summary="Update company details",
+        operation_description=(
+            "Update company information including capital structure fields. "
+            "Supports partial updates (PATCH). Validates capital structure relationships: "
+            "Authorized Capital > Issued Capital >= Paid-up Capital"
+        ),
+        request_body=CompanySerializer,
+        responses={
+            200: CompanySerializer,
+            400: openapi.Response(
+                description="Validation error",
+                examples={
+                    "application/json": {
+                        "authorized_capital_amount": [
+                            "Authorized Capital must be greater than Issued Capital."
+                        ]
+                    }
+                },
+            ),
+            404: openapi.Response(description="Company not found"),
+        },
+    )
+    def patch(self, request, *args, **kwargs):
+        """Handle PATCH request for partial update."""
+        return self.partial_update(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        """Handle PUT request for full update."""
+        return self.update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        """Save the updated company with updated_by tracking."""
+        serializer.save(updated_by=self.request.user)

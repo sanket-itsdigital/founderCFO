@@ -1,8 +1,16 @@
 from django.urls import path
 
-from accounts.views.api.auth.auth_views import ChangePasswordAPIView, LogoutAPIView, ProfileAPIView, SigninView
+from accounts.views.api.auth.auth_views import (
+    ChangePasswordAPIView,
+    LogoutAPIView,
+    ProfileAPIView,
+    SigninView,
+)
 from accounts.views.api.auth.registration_views import SignupView
-from accounts.views.api.company.company_views import CompanyCreateView
+from accounts.views.api.company.company_views import (
+    CompanyCreateView,
+    CompanyUpdateView,
+)
 from accounts.views.api.company.team_views import (
     TeamMemberDetailView,
     TeamMemberListCreateView,
@@ -17,12 +25,12 @@ urlpatterns = [
     path("admin-user-profile/", user_profile, name="admin_user_profile"),
     path("signup/", SignupView.as_view(), name="api-signup"),
     path("change-password/", ChangePasswordAPIView.as_view(), name="change-password"),
-    
     path("signin/", SigninView.as_view(), name="api-signin"),
     path("logout/", LogoutAPIView.as_view(), name="api-logout"),
     path("profile/", ProfileAPIView.as_view(), name="api-profile"),
     # Company registration
     path("company/register/", CompanyCreateView.as_view(), name="company-register"),
+    path("company/<uuid:id>/", CompanyUpdateView.as_view(), name="company-update"),
     path(
         "company/team-members/",
         TeamMemberListCreateView.as_view(),
