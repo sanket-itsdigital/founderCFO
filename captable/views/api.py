@@ -157,6 +157,83 @@ class CapitalizationTableListCreateView(CompanyScopedMixin, generics.ListCreateA
             queryset = queryset.filter(event_id=event_id)
         return queryset.order_by("-event__date", "-created_at")
 
+    def list(self, request, *args, **kwargs):
+        """Override list to include ownership summary."""
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            # Calculate ownership summary from full queryset
+            ownership_summary = self._calculate_ownership_summary(queryset)
+            response = self.get_paginated_response(serializer.data)
+            response.data["ownership_summary"] = ownership_summary
+            return response
+        
+        serializer = self.get_serializer(queryset, many=True)
+        ownership_summary = self._calculate_ownership_summary(queryset)
+        return Response({
+            "results": serializer.data,
+            "ownership_summary": ownership_summary
+        })
+
+    def _calculate_ownership_summary(self, queryset):
+        """Calculate cumulative ownership for all shareholders."""
+        if not queryset.exists():
+            return {"shareholders": [], "total_issued_shares": 0}
+        
+        company = queryset.first().company
+        
+        # Get all transactions for this company (all events)
+        all_transactions = CapitalizationTable.objects.filter(
+            company=company
+        ).select_related("shareholder", "event").order_by("event__date")
+        
+        # Calculate cumulative shares per shareholder
+        shareholder_totals = {}
+        total_issued = Decimal("0")
+        
+        for tx in all_transactions:
+            shareholder_id = tx.shareholder.id
+            if shareholder_id not in shareholder_totals:
+                shareholder_totals[shareholder_id] = {
+                    "shareholder_id": str(shareholder_id),
+                    "shareholder_name": tx.shareholder.name,
+                    "investor_type": tx.shareholder.investor_type,
+                    "email": tx.shareholder.email,
+                    "total_shares": Decimal("0"),
+                    "total_invested": Decimal("0"),
+                }
+            
+            shareholder_totals[shareholder_id]["total_shares"] += tx.shares_issued or Decimal("0")
+            shareholder_totals[shareholder_id]["total_invested"] += tx.amount or Decimal("0")
+            total_issued += tx.shares_issued or Decimal("0")
+        
+        # Calculate ownership percentages
+        shareholders = []
+        for data in shareholder_totals.values():
+            ownership_pct = 0.0
+            if total_issued > 0:
+                ownership_pct = float((data["total_shares"] / total_issued) * Decimal("100"))
+            
+            shareholders.append({
+                "shareholder_id": data["shareholder_id"],
+                "shareholder_name": data["shareholder_name"],
+                "investor_type": data["investor_type"],
+                "email": data["email"],
+                "total_shares": float(data["total_shares"]),
+                "total_invested": float(data["total_invested"]),
+                "ownership_percentage": round(ownership_pct, 2),
+            })
+        
+        # Sort by ownership percentage descending
+        shareholders.sort(key=lambda x: x["ownership_percentage"], reverse=True)
+        
+        return {
+            "shareholders": shareholders,
+            "total_issued_shares": float(total_issued),
+        }
+
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
@@ -168,11 +245,55 @@ class CapitalizationTableDetailView(
     serializer_class = CapitalizationTableSerializer
 
     def get_queryset(self):
+        user = self.request.user
+        company_id = self.request.query_params.get("company_id")
+        
+        # Build base filter
+        filters = {"company__owner": user}
+        if company_id:
+            filters["company_id"] = company_id
+        
         return (
-            CapitalizationTable.objects.filter(**self._company_filter())
+            CapitalizationTable.objects.filter(**filters)
             .select_related("event", "shareholder", "company")
             .order_by("-event__date", "-created_at")
         )
+    
+    def get_object(self):
+        """Override to provide better error message and handle company filtering."""
+        from django.http import Http404
+        from rest_framework.exceptions import NotFound, PermissionDenied
+        
+        try:
+            return super().get_object()
+        except (Http404, NotFound):
+            # Check if transaction exists but doesn't match the filter
+            pk = self.kwargs.get("pk")
+            try:
+                transaction = CapitalizationTable.objects.select_related("company").get(id=pk)
+                
+                # Check if user owns the company
+                if transaction.company.owner != self.request.user:
+                    raise PermissionDenied(
+                        "You don't have permission to access this transaction. "
+                        "It belongs to a different company."
+                    )
+                
+                # Transaction exists and belongs to user's company
+                # The issue might be company_id filter mismatch
+                company_id = self.request.query_params.get("company_id")
+                if company_id and str(transaction.company.id) != company_id:
+                    raise NotFound(
+                        f"Transaction not found. The transaction belongs to company "
+                        f"{transaction.company.id}, but you're filtering by company {company_id}."
+                    )
+                
+                # Transaction exists and matches ownership, return it
+                return transaction
+            except CapitalizationTable.DoesNotExist:
+                raise NotFound("No CapitalizationTable matches the given query.")
+            except (PermissionDenied, NotFound):
+                raise
 
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
@@ -295,7 +416,73 @@ class CapTableEventTransactionCreateView(CompanyScopedMixin, APIView):
     def get(self, request):
         queryset = self._get_queryset()
         serializer = CapTableEventDetailSerializer(queryset, many=True)
+        
+        # Calculate cumulative ownership summary across all events
+        company_id = request.query_params.get("company_id")
+        if company_id:
+            try:
+                company = Company.objects.get(id=company_id, owner=request.user)
+                ownership_summary = self._calculate_ownership_summary(company)
+                return Response({
+                    "events": serializer.data,
+                    "ownership_summary": ownership_summary
+                })
+            except Company.DoesNotExist:
+                pass
+        
         return Response(serializer.data)
+    
+    def _calculate_ownership_summary(self, company):
+        """Calculate cumulative ownership for all shareholders across all events."""
+        # Get all transactions for this company (all events)
+        all_transactions = CapitalizationTable.objects.filter(
+            company=company
+        ).select_related("shareholder", "event").order_by("event__date")
+        
+        # Calculate cumulative shares per shareholder
+        shareholder_totals = {}
+        total_issued = Decimal("0")
+        
+        for tx in all_transactions:
+            shareholder_id = tx.shareholder.id
+            if shareholder_id not in shareholder_totals:
+                shareholder_totals[shareholder_id] = {
+                    "shareholder_id": str(shareholder_id),
+                    "shareholder_name": tx.shareholder.name,
+                    "investor_type": tx.shareholder.investor_type,
+                    "email": tx.shareholder.email,
+                    "total_shares": Decimal("0"),
+                    "total_invested": Decimal("0"),
+                }
+            
+            shareholder_totals[shareholder_id]["total_shares"] += tx.shares_issued or Decimal("0")
+            shareholder_totals[shareholder_id]["total_invested"] += tx.amount or Decimal("0")
+            total_issued += tx.shares_issued or Decimal("0")
+        
+        # Calculate ownership percentages
+        shareholders = []
+        for data in shareholder_totals.values():
+            ownership_pct = 0.0
+            if total_issued > 0:
+                ownership_pct = float((data["total_shares"] / total_issued) * Decimal("100"))
+            
+            shareholders.append({
+                "shareholder_id": data["shareholder_id"],
+                "shareholder_name": data["shareholder_name"],
+                "investor_type": data["investor_type"],
+                "email": data["email"],
+                "total_shares": float(data["total_shares"]),
+                "total_invested": float(data["total_invested"]),
+                "ownership_percentage": round(ownership_pct, 2),
+            })
+        
+        # Sort by ownership percentage descending
+        shareholders.sort(key=lambda x: x["ownership_percentage"], reverse=True)
+        
+        return {
+            "shareholders": shareholders,
+            "total_issued_shares": float(total_issued),
+        }
 
     def post(self, request):
         serializer = CapTableEventTransactionCreateSerializer(
