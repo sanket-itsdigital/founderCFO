@@ -336,6 +336,40 @@ class ESOPGrantListCreateView(CompanyScopedMixin, generics.ListCreateAPIView):
             "-grant_date", "-created_at"
         )
 
+    def list(self, request, *args, **kwargs):
+        """Override list to include summary totals."""
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # Calculate totals from full queryset (before pagination)
+        total_options = sum(grant.total_options for grant in queryset)
+        total_vested = Decimal("0")
+        for grant in queryset:
+            _, vested, _ = grant.calculate_vesting_metrics()
+            total_vested += vested
+
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            # Add summary to paginated response
+            response.data["summary"] = {
+                "total_options": total_options,
+                "total_vested": float(total_vested),
+            }
+            return response
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(
+            {
+                "results": serializer.data,
+                "summary": {
+                    "total_options": total_options,
+                    "total_vested": float(total_vested),
+                },
+            }
+        )
+
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
