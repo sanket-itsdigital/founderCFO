@@ -109,6 +109,74 @@ class CapTableEventDetailView(
             return CapTableEventDetailSerializer
         return CapTableEventSerializer
 
+    def retrieve(self, request, *args, **kwargs):
+        """Override retrieve to include ownership summary up to this event's date."""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        
+        # Calculate ownership summary up to this event's date
+        ownership_summary = self._calculate_ownership_summary(instance)
+        data["ownership_summary"] = ownership_summary
+        
+        return Response(data)
+    
+    def _calculate_ownership_summary(self, event):
+        """Calculate cumulative ownership for all shareholders up to this event's date."""
+        company = event.company
+        event_date = event.date
+        
+        # Get transactions up to and including this event's date
+        all_transactions = CapitalizationTable.objects.filter(
+            company=company,
+            event__date__lte=event_date
+        ).select_related("shareholder", "event").order_by("event__date")
+        
+        # Calculate cumulative shares per shareholder
+        shareholder_totals = {}
+        total_issued = Decimal("0")
+        
+        for tx in all_transactions:
+            shareholder_id = tx.shareholder.id
+            if shareholder_id not in shareholder_totals:
+                shareholder_totals[shareholder_id] = {
+                    "shareholder_id": str(shareholder_id),
+                    "shareholder_name": tx.shareholder.name,
+                    "investor_type": tx.shareholder.investor_type,
+                    "email": tx.shareholder.email,
+                    "total_shares": Decimal("0"),
+                    "total_invested": Decimal("0"),
+                }
+            
+            shareholder_totals[shareholder_id]["total_shares"] += tx.shares_issued or Decimal("0")
+            shareholder_totals[shareholder_id]["total_invested"] += tx.amount or Decimal("0")
+            total_issued += tx.shares_issued or Decimal("0")
+        
+        # Calculate ownership percentages
+        shareholders = []
+        for data in shareholder_totals.values():
+            ownership_pct = 0.0
+            if total_issued > 0:
+                ownership_pct = float((data["total_shares"] / total_issued) * Decimal("100"))
+            
+            shareholders.append({
+                "shareholder_id": data["shareholder_id"],
+                "shareholder_name": data["shareholder_name"],
+                "investor_type": data["investor_type"],
+                "email": data["email"],
+                "total_shares": float(data["total_shares"]),
+                "total_invested": float(data["total_invested"]),
+                "ownership_percentage": round(ownership_pct, 2),
+            })
+        
+        # Sort by ownership percentage descending
+        shareholders.sort(key=lambda x: x["ownership_percentage"], reverse=True)
+        
+        return {
+            "shareholders": shareholders,
+            "total_issued_shares": float(total_issued),
+        }
+
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
 
@@ -178,15 +246,29 @@ class CapitalizationTableListCreateView(CompanyScopedMixin, generics.ListCreateA
         })
 
     def _calculate_ownership_summary(self, queryset):
-        """Calculate cumulative ownership for all shareholders."""
+        """Calculate cumulative ownership for all shareholders up to a specific event date."""
         if not queryset.exists():
             return {"shareholders": [], "total_issued_shares": 0}
         
         company = queryset.first().company
         
-        # Get all transactions for this company (all events)
+        # Check if we're filtering by a specific event
+        event_id = self.request.query_params.get("event_id")
+        event_date = None
+        if event_id:
+            try:
+                event = CapTableEvents.objects.get(id=event_id, company=company)
+                event_date = event.date
+            except CapTableEvents.DoesNotExist:
+                pass
+        
+        # Get transactions up to the event date (or all if no event specified)
+        transaction_filter = {"company": company}
+        if event_date:
+            transaction_filter["event__date__lte"] = event_date
+        
         all_transactions = CapitalizationTable.objects.filter(
-            company=company
+            **transaction_filter
         ).select_related("shareholder", "event").order_by("event__date")
         
         # Calculate cumulative shares per shareholder
