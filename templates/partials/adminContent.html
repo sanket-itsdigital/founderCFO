@@ -1,0 +1,251 @@
+{% load static %} {% block content %}
+
+<style>
+      .glass-dashboard {
+        background: #f7f7ff;
+        min-height: 100vh;
+        padding-bottom: 2rem;
+      }
+
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 18px;
+      }
+
+      .stat-card {
+        {% comment %} background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), #f5f1ff); {% endcomment %}
+        border: 1px solid rgba(138, 117, 238, 0.15);
+        border-radius: 18px;
+        box-shadow: 0 15px 45px rgba(25, 4, 73, 0.08);
+        padding: 22px 24px;
+        transition: transform 0.35s ease, box-shadow 0.35s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .stat-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        {% comment %} background: radial-gradient(
+          circle at top right,
+          rgba(137, 90, 246, 0.15),
+          transparent 60%
+        ); {% endcomment %}
+      }
+
+      .stat-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 55px rgba(25, 4, 73, 0.15);
+      }
+
+      .stat-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(137, 90, 246, 0.12);
+        color: #895af6;
+        margin-bottom: 18px;
+        font-size: 1.25rem;
+        z-index: 1;
+      }
+
+      .stat-label {
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 0.78rem;
+        color: #82889f;
+        font-weight: 600;
+        margin-bottom: 8px;
+        z-index: 1;
+      }
+
+      .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2251;
+        margin-bottom: 8px;
+        z-index: 1;
+      }
+
+      .trend-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        z-index: 1;
+      }
+
+      .trend-up {
+        background: rgba(94, 219, 136, 0.15);
+        color: #15a65b;
+      }
+
+      .trend-down {
+        background: rgba(255, 99, 132, 0.15);
+        color: #d13d58;
+      }
+
+      .dashboard-heading h4 {
+        font-weight: 600;
+        color: #1f2251;
+      }
+
+      .dashboard-heading span {
+        color: #8f95b2;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 575px) {
+        .stat-card {
+          padding: 18px;
+        }
+        .stat-value {
+          font-size: 1.6rem;
+        }
+      }
+
+    .icon-blue {
+        color: #007bff !important; /* Bootstrap Blue */
+        background: rgba(0, 123, 255, 0.12) !important; /* optional glow */
+    }
+
+    /* Green Icon */
+  .icon-green {
+      color: #16a34a !important;                 /* Tailwind Green 600 */
+      background: rgba(22, 163, 74, 0.12) !important;
+  }
+
+  /* Red Icon */
+  .icon-red {
+      color: #dc2626 !important;                 /* Tailwind Red 600 */
+      background: rgba(220, 38, 38, 0.12) !important;
+  }
+
+  /* Orange Icon */
+  .icon-orange {
+      color: #f97316 !important;                 /* Tailwind Orange 500 */
+      background: rgba(249, 115, 22, 0.12) !important;
+  }
+</style>
+
+<!-- ============================================================== -->
+<!-- Start right Content here -->
+<!-- ============================================================== -->
+<div class="main-content glass-dashboard">
+  <div class="page-content">
+    <div class="container-fluid">
+      <div class="dashboard-heading mb-4">
+        <h4 class="mb-1">Admin Dashboard</h4>
+        <span>High level overview of your financial performance</span>
+      </div>
+
+      <div class="dashboard-grid mb-3">
+        <div class="stat-card">
+          <div class="stat-icon icon-blue">
+            <i data-feather="dollar-sign"></i>
+          </div>
+          <div class="stat-label">Total Balance</div>
+          <div class="stat-value">${{ total_order|default:0 }}</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="trending-up" width="14"></i>
+            {{total_order_percentage|default:"0"}}%
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-orange">
+            <i data-feather="navigation"></i>
+          </div>
+          <div class="stat-label">Total Earnings</div>
+          <div class="stat-value">${{ total_brand|default:0 }}</div>
+          <span class="trend-pill trend-down">
+            <i data-feather="trending-down" width="14"></i>
+            {{total_brand_percentage|default:"0"}}%
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-red">
+            <i data-feather="credit-card"></i>
+          </div>
+          <div class="stat-label">Total Spending</div>
+          <div class="stat-value">${{ total_amount|default:0 }}</div>
+          <span class="trend-pill trend-down">
+            <i data-feather="arrow-down-right" width="14"></i>
+            {{total_amount_percentage|default:"0"}}%
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-green">
+            <i data-feather="activity"></i>
+          </div>
+          <div class="stat-label">Total Income</div>
+          <div class="stat-value">${{ total_users|default:0 }}</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="arrow-up-right" width="14"></i>
+            {{total_users_percentage|default:"0"}}%
+          </span>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="stat-card">
+          <div class="stat-label">Revenue</div>
+          <div class="stat-value">${{ total_amount|default:0 }}</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="trending-up" width="14"></i>
+            {{total_amount_percentage|default:"0"}}%
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Active Users</div>
+          <div class="stat-value">{{ total_product|default:0 }}</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="user-check" width="14"></i>
+            {{total_product_percentage|default:"0"}}%
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Conversion</div>
+          <div class="stat-value">{{ total_vendor_store|default:"0" }}%</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="activity" width="14"></i>
+            {{total_vendor_store_percentage|default:"0"}}%
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">MRR</div>
+          <div class="stat-value">${{ total_users|default:0 }}</div>
+          <span class="trend-pill trend-up">
+            <i data-feather="trending-up" width="14"></i>
+            {{total_users_percentage|default:"0"}}%
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% block footer %} {% include 'partials/footer.html'%} {% endblock footer %}
+</div>
+
+{% endblock content %} {% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.feather) {
+      window.feather.replace();
+    }
+  });
+</script>
+{% endblock extra_js %}

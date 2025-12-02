@@ -1,0 +1,125 @@
+{% load static %}
+
+<style>
+  .vertical-menu {
+    width: 260px;
+    background-color: #190449;
+    min-height: 100vh;
+  }
+
+  .has-arrow {
+    color: white !important;
+  }
+
+  #sidebar-menu ul li a svg {
+    color: white !important;
+  }
+
+  .mm-active .active {
+    color: #ffffffff !important;
+  }
+
+  .nonnm {
+    color: white !important;
+  }
+
+  .mm-active > a {
+    color: #ffffffff !important;
+  }
+
+  #sidebar-menu ul li ul.sub-menu li a {
+    padding: 0.425rem 1.5rem 0.425rem 3.5rem;
+    font-size: 0.825rem;
+    color: white !important;
+  }
+
+  #sidebar-menu ul li ul.sub-menu li a:hover {
+    color: #fff !important;
+  }
+
+  #sidebar-menu ul li a:hover {
+    color: #fff !important;
+  }
+
+  .logout-wrapper {
+    margin-top: auto;
+    padding: 0.75rem;
+  }
+
+  .btn-light {
+    background-color: white !important;
+    color: black !important;
+  }
+</style>
+
+<div class="vertical-menu">
+  <div data-simplebar class="h-100">
+    <div id="sidebar-menu" style="background-color: #190449">
+      <ul class="metismenu list-unstyled" id="side-menu">
+        <li>
+          <a href="{% url 'admin_user_profile' %}" class="nonnm">
+            <i data-feather="user"></i>
+            <span>User Profile</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="{% url 'dashboard' %}" class="nonnm">
+            <i data-feather="home"></i>
+            <span class="badge rounded-pill text-success float-end">9+</span>
+            <span>Admin Dashboard</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="javascript: void(0);" class="has-arrow">
+            <i data-feather="users"></i>
+            <span>Data Room</span>
+          </a>
+          <ul class="sub-menu" aria-expanded="false">
+            <li>
+              <a href="javascript:void(0);" class="has-arrow">Folder</a>
+              <ul class="sub-menu" aria-expanded="false">
+                <li>
+                  <a href="{% url 'dataroom:add_folder' %}">Add Folder</a>
+                </li>
+                <li>
+                  <a href="{% url 'dataroom:list_folder' %}">Folder List</a>
+                </li>
+              </ul>
+            </li>
+
+            <li>
+              <a href="javascript:void(0);" class="has-arrow">File Category</a>
+              <ul class="sub-menu" aria-expanded="false">
+                <li>
+                  <a href="{% url 'dataroom:add_category' %}">Add Category</a>
+                </li>
+                <li>
+                  <a href="{% url 'dataroom:list_category' %}">Category List</a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+
+        <li>
+          <a href="javascript: void(0);" class="has-arrow">
+            <i data-feather="map-pin"></i>
+            <span>Litigation</span>
+          </a>
+          <ul class="sub-menu" aria-expanded="false"></ul>
+        </li>
+
+        <!-- ===== Logout ===== -->
+      </ul>
+
+      <div class="logout-wrapper">
+        <form method="POST" action="{% url 'admin_logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-light w-100">Logout</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

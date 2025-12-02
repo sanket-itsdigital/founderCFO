@@ -1,0 +1,129 @@
+from django.urls import path
+
+from captable.views.api import (
+    CapTableEventDetailView,
+    CapTableEventDocumentView,
+    CapTableEventListCreateView,
+    CapTableEventTransactionCreateView,
+    CapTableEventTransactionDetailView,
+    CapTableSummaryView,
+    CapitalizationTableDetailView,
+    CapitalizationTableListCreateView,
+    CapitalStructureOverviewView,
+    ConfigureESOPPoolView,
+    EmployeeESOPDetailView,
+    EmployeeESOPDirectoryView,
+    ESOPGrantDetailView,
+    ESOPGrantListCreateView,
+    ESOPPoolHistoryView,
+    ESOPPoolOverviewView,
+    ShareHolderListView,
+    ShareholderDetailView,
+    ShareholderListCreateView,
+    VestingScheduleDetailView,
+    VestingScheduleDropdownListView,
+    VestingScheduleListCreateView,
+)
+
+app_name = "captable"
+
+urlpatterns = [
+    path("events/", CapTableEventListCreateView.as_view(), name="captable-events-list"),
+    path(
+        "events/<uuid:pk>/",
+        CapTableEventDetailView.as_view(),
+        name="captable-events-detail",
+    ),
+    path(
+        "events/<uuid:pk>/documents/",
+        CapTableEventDocumentView.as_view(),
+        name="captable-events-documents",
+    ),
+    path(
+        "events/transactions/",
+        CapTableEventTransactionCreateView.as_view(),
+        name="captable-events-transactions",
+    ),
+    path(
+        "events/transactions/<uuid:pk>/",
+        CapTableEventTransactionDetailView.as_view(),
+        name="captable-events-transactions-detail",
+    ),
+    path(
+        "shareholders/",
+        ShareholderListCreateView.as_view(),
+        name="captable-shareholders-list",
+    ),
+    path(
+        "shareholders/<uuid:pk>/",
+        ShareholderDetailView.as_view(),
+        name="captable-shareholders-detail",
+    ),
+    path(
+        "transactions/",
+        CapitalizationTableListCreateView.as_view(),
+        name="captable-transactions-list",
+    ),
+    path(
+        "transactions/<uuid:pk>/",
+        CapitalizationTableDetailView.as_view(),
+        name="captable-transactions-detail",
+    ),
+    path("summary/", CapTableSummaryView.as_view(), name="summary"),
+    path("shareholders-list/", ShareHolderListView.as_view(), name="shareholder-list"),
+    path(
+        "esop-grants/",
+        ESOPGrantListCreateView.as_view(),
+        name="esop-grants-list",
+    ),
+    path(
+        "esop-grants/<uuid:pk>/",
+        ESOPGrantDetailView.as_view(),
+        name="esop-grants-detail",
+    ),
+    path(
+        "vesting-schedules/",
+        VestingScheduleListCreateView.as_view(),
+        name="vesting-schedules-list",
+    ),
+    path(
+        "vesting-schedules/<uuid:pk>/",
+        VestingScheduleDetailView.as_view(),
+        name="vesting-schedules-detail",
+    ),
+    path(
+        "vesting-schedules/drop-down/",
+        VestingScheduleDropdownListView.as_view(),
+        name="vesting-schedules-dropdown",
+    ),
+    path(
+        "capital-structure-overview/",
+        CapitalStructureOverviewView.as_view(),
+        name="capital-structure-overview",
+    ),
+    path(
+        "esop-pool-overview/",
+        ESOPPoolOverviewView.as_view(),
+        name="esop-pool-overview",
+    ),
+    path(
+        "configure-esop-pool/",
+        ConfigureESOPPoolView.as_view(),
+        name="configure-esop-pool",
+    ),
+    path(
+        "employees/esop-directory/",
+        EmployeeESOPDirectoryView.as_view(),
+        name="employee-esop-directory",
+    ),
+    path(
+        "employees/esop-details/",
+        EmployeeESOPDetailView.as_view(),
+        name="employee-esop-details",
+    ),
+    path(
+        "esop-pool/history/",
+        ESOPPoolHistoryView.as_view(),
+        name="esop-pool-history",
+    ),
+]
