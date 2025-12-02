@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from django.db.models import Q
 
 from accounts.models import Company, TeamMember
 from litigation.models import Case
@@ -88,18 +87,26 @@ class CaseSerializer(serializers.ModelSerializer):
         if not request:
             return value
 
-        # Check if user is owner OR active team member of the company
+        # First, get the company by ID
         try:
-            company = Company.objects.get(
-                Q(id=value, owner=request.user)
-                | Q(
-                    id=value,
-                    team_members__user=request.user,
-                    team_members__is_active=True,
-                )
+            company = Company.objects.get(id=value)
+        except Company.DoesNotExist:
+            raise serializers.ValidationError(
+                "The company you selected does not exist. Please select a valid company."
             )
-        except Company.DoesNotExist as exc:  # pragma: no cover - defensive
-            raise serializers.ValidationError("Invalid company.") from exc
+
+        # Check if user is owner OR active team member of the company
+        is_owner = company.owner == request.user
+        is_team_member = TeamMember.objects.filter(
+            company=company, user=request.user, is_active=True
+        ).exists()
+
+        if not (is_owner or is_team_member):
+            raise serializers.ValidationError(
+                f"You don't have permission to create cases for '{company.name}'. "
+                "You must be the company owner or an active team member to perform this action."
+            )
+
         self._validated_company = company
         return value
 
@@ -110,21 +117,39 @@ class CaseSerializer(serializers.ModelSerializer):
             # Check if user is owner OR active team member
             request = self.context.get("request")
             if request:
-                company = (
-                    Company.objects.filter(
-                        Q(id=company_id, owner=request.user)
-                        | Q(
-                            id=company_id,
-                            team_members__user=request.user,
-                            team_members__is_active=True,
+                try:
+                    company = Company.objects.get(id=company_id)
+                    # Verify user has access
+                    is_owner = company.owner == request.user
+                    is_team_member = TeamMember.objects.filter(
+                        company=company, user=request.user, is_active=True
+                    ).exists()
+                    if not (is_owner or is_team_member):
+                        raise serializers.ValidationError(
+                            {
+                                "company_id": (
+                                    f"You don't have permission to create cases for '{company.name}'. "
+                                    "You must be the company owner or an active team member to perform this action."
+                                )
+                            }
                         )
+                except Company.DoesNotExist:
+                    raise serializers.ValidationError(
+                        {
+                            "company_id": (
+                                "The company you selected does not exist. "
+                                "Please select a valid company."
+                            )
+                        }
                     )
-                    .distinct()
-                    .first()
-                )
         if not company:
             raise serializers.ValidationError(
-                {"company_id": "Company is required or invalid."}
+                {
+                    "company_id": (
+                        "Company is required. Please provide a valid company ID "
+                        "for a company you own or are a team member of."
+                    )
+                }
             )
         return Case.objects.create(company=company, **validated_data)
 
