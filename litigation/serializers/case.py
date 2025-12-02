@@ -1,6 +1,7 @@
 from rest_framework import serializers
+from django.db.models import Q
 
-from accounts.models import Company
+from accounts.models import Company, TeamMember
 from litigation.models import Case
 
 
@@ -86,8 +87,17 @@ class CaseSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request:
             return value
+
+        # Check if user is owner OR active team member of the company
         try:
-            company = Company.objects.get(id=value, owner=request.user)
+            company = Company.objects.get(
+                Q(id=value, owner=request.user)
+                | Q(
+                    id=value,
+                    team_members__user=request.user,
+                    team_members__is_active=True,
+                )
+            )
         except Company.DoesNotExist as exc:  # pragma: no cover - defensive
             raise serializers.ValidationError("Invalid company.") from exc
         self._validated_company = company
@@ -97,9 +107,21 @@ class CaseSerializer(serializers.ModelSerializer):
         company_id = validated_data.pop("company_id", None)
         company = getattr(self, "_validated_company", None)
         if company_id and not company:
-            company = Company.objects.filter(
-                id=company_id, owner=self.context["request"].user
-            ).first()
+            # Check if user is owner OR active team member
+            request = self.context.get("request")
+            if request:
+                company = (
+                    Company.objects.filter(
+                        Q(id=company_id, owner=request.user)
+                        | Q(
+                            id=company_id,
+                            team_members__user=request.user,
+                            team_members__is_active=True,
+                        )
+                    )
+                    .distinct()
+                    .first()
+                )
         if not company:
             raise serializers.ValidationError(
                 {"company_id": "Company is required or invalid."}

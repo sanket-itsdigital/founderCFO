@@ -14,7 +14,11 @@ class CompanyCasesQuerysetMixin:
         user = getattr(self.request, "user", None)
         if not user or not user.is_authenticated:
             return Case.objects.none()
-        qs = Case.objects.filter(company__owner=user)
+        # Filter by companies where user is owner OR active team member
+        qs = Case.objects.filter(
+            Q(company__owner=user)
+            | Q(company__team_members__user=user, company__team_members__is_active=True)
+        ).distinct()
         company_id = self.request.query_params.get("company_id")
         if company_id:
             qs = qs.filter(company_id=company_id)
