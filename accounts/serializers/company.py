@@ -70,7 +70,14 @@ class CompanySerializer(serializers.ModelSerializer):
                 )
             owner = request.user
 
-        return Company.objects.create(owner=owner, **validated_data)
+        # Set created_by and updated_by from the owner/user
+        # These fields are required by BaseModel validation
+        return Company.objects.create(
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+            **validated_data
+        )
 
     def validate(self, attrs):
         """Validate capital structure relationships and auto-calculate amounts/shares/price."""
