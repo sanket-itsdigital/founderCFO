@@ -173,7 +173,7 @@ class UserProfileListSerializer(ModelSerializer):
             "status",
             "profile_image",
         ]
-        read_only_fields = ["id", "email", "role", "status", "profile_image"]
+        read_only_fields = ["id", "first_name", "last_name", "email", "role", "status", "profile_image"]
 
 
 class ChangePasswordSerializer(Serializer):

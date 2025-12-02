@@ -119,11 +119,14 @@ class TeamMemberCreateSerializer(serializers.ModelSerializer):
         email = validated_data.pop("email")
         mobile_number = validated_data.pop("mobile_number", None)
         raw_password = validated_data.pop("password")
+        first_name = validated_data.pop("first_name", None)
+        middle_name = validated_data.pop("middle_name", None)
+        last_name = validated_data.pop("last_name", None)
 
         user_defaults = {
-            # "first_name": validated_data.pop("first_name"),
-            # "middle_name": validated_data.pop("middle_name", None),
-            # "last_name": validated_data.pop("last_name"),
+            "first_name": first_name,
+            "middle_name": middle_name,
+            "last_name": last_name,
             "role": validated_data["role"],
         }
         if mobile_number:
@@ -132,8 +135,20 @@ class TeamMemberCreateSerializer(serializers.ModelSerializer):
         user, created = User.objects.get_or_create(email=email, defaults=user_defaults)
 
         if not created:
-            for field, value in user_defaults.items():
-                setattr(user, field, value)
+            # Update existing user with provided fields
+            # Always update name fields if provided
+            if first_name is not None:
+                user.first_name = first_name
+            if middle_name is not None:
+                user.middle_name = middle_name
+            if last_name is not None:
+                user.last_name = last_name
+            if mobile_number:
+                user.mobile_number = mobile_number
+        
+        # Set role for both new and existing users
+        user.role = validated_data["role"]
+        
         if raw_password:
             user.set_password(raw_password)
         elif created:
@@ -141,8 +156,7 @@ class TeamMemberCreateSerializer(serializers.ModelSerializer):
 
         if profile_image is not None:
             user.profile_image = profile_image
-
-        user.role = validated_data["role"]
+        
         user.save()
 
         return TeamMember.objects.create(
