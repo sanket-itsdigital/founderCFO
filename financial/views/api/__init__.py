@@ -63,6 +63,7 @@ from financial.views.api.invoice import (
     InvoiceListCreateView,
     InvoiceRetrieveUpdateDestroyView,
 )
+from financial.views.api.customer_balance import CustomerBalanceSummaryView
 
 __all__ = [
     "ARAgeingSummaryView",
@@ -112,5 +113,5 @@ __all__ = [
     "AuditTrailListView",
     "InvoiceListCreateView",
     "InvoiceRetrieveUpdateDestroyView",
+    "CustomerBalanceSummaryView",
 ]
-

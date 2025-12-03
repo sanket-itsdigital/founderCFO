@@ -3,6 +3,7 @@ from financial.views.api import (
     ARAgeingSummaryView,
     InvoiceListCreateView,
     InvoiceRetrieveUpdateDestroyView,
+    CustomerBalanceSummaryView,
     CollectionPriorityView,
     RemindersSummaryView,
     ReminderScheduleListView,
@@ -61,13 +62,18 @@ urlpatterns = [
         InvoiceRetrieveUpdateDestroyView.as_view(),
         name="invoice-detail",
     ),
+    # Customer Balance Summary
+    path(
+        "customers/balance-summary/",
+        CustomerBalanceSummaryView.as_view(),
+        name="customer-balance-summary",
+    ),
     # AR Ageing
     path(
         "ar-ageing-summary/",
         ARAgeingSummaryView.as_view(),
         name="ar-ageing-summary",
     ),
-   
     # Collection Priority
     path(
         "collection-priority/",
