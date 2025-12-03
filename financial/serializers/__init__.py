@@ -47,6 +47,12 @@ from financial.serializers.customer_balance import (
     CustomerBalanceSerializer,
     CustomerBalanceSummarySerializer,
 )
+from financial.serializers.customer_segments import (
+    CustomerSegmentsSerializer,
+    SegmentSummarySerializer,
+    CustomerSegmentDetailSerializer,
+    SegmentDetailSerializer,
+)
 
 __all__ = [
     "ARAgeingSummarySerializer",
@@ -82,4 +88,8 @@ __all__ = [
     "InvoiceCreateSerializer",
     "CustomerBalanceSerializer",
     "CustomerBalanceSummarySerializer",
+    "CustomerSegmentsSerializer",
+    "SegmentSummarySerializer",
+    "CustomerSegmentDetailSerializer",
+    "SegmentDetailSerializer",
 ]

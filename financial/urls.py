@@ -4,6 +4,7 @@ from financial.views.api import (
     InvoiceListCreateView,
     InvoiceRetrieveUpdateDestroyView,
     CustomerBalanceSummaryView,
+    CustomerSegmentsView,
     CollectionPriorityView,
     RemindersSummaryView,
     ReminderScheduleListView,
@@ -67,6 +68,12 @@ urlpatterns = [
         "customers/balance-summary/",
         CustomerBalanceSummaryView.as_view(),
         name="customer-balance-summary",
+    ),
+    # Customer Segments
+    path(
+        "customers/segments/",
+        CustomerSegmentsView.as_view(),
+        name="customer-segments",
     ),
     # AR Ageing
     path(
