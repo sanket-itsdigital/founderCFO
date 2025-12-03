@@ -975,3 +975,105 @@ class EmployeeESOPDetailSerializer(serializers.Serializer):
     exercise_history = serializers.ListField(
         child=serializers.DictField(), default=list
     )
+
+
+class CapTableSetupSerializer(serializers.ModelSerializer):
+    """Serializer for Cap Table Setup - Authorized Capital and ESOP Pool"""
+    authorized_capital_display = serializers.SerializerMethodField()
+    authorized_capital_calculation = serializers.SerializerMethodField()
+    esop_pool_size_display = serializers.SerializerMethodField()
+    esop_pool_calculation = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Company
+        fields = [
+            "id",
+            "authorized_capital_shares",
+            "face_value_per_share",
+            "authorized_capital_amount",
+            "authorized_capital_display",
+            "authorized_capital_calculation",
+            "esop_pool_percentage",
+            "esop_pool_size",
+            "esop_pool_size_display",
+            "esop_pool_calculation",
+            "esop_pool_notes",
+        ]
+
+    def get_authorized_capital_display(self, obj):
+        """Format authorized capital for display"""
+        if obj.authorized_capital_amount == 0:
+            return "INR 0"
+        # Format with commas
+        amount = obj.authorized_capital_amount
+        return f"INR {amount:,.0f}"
+
+    def get_authorized_capital_calculation(self, obj):
+        """Get calculation string for authorized capital"""
+        if obj.authorized_capital_shares == 0 or obj.face_value_per_share == 0:
+            return None
+        shares = f"{obj.authorized_capital_shares:,}"
+        face_value = f"{obj.face_value_per_share:.0f}"
+        return f"= {shares} shares × INR {face_value} per share"
+
+    def get_esop_pool_size_display(self, obj):
+        """Format ESOP pool size for display"""
+        if obj.esop_pool_size == 0:
+            return "0 shares"
+        return f"{obj.esop_pool_size:,} shares"
+
+    def get_esop_pool_calculation(self, obj):
+        """Get calculation string for ESOP pool"""
+        if obj.esop_pool_percentage == 0 or obj.authorized_capital_shares == 0:
+            return None
+        percentage = f"{obj.esop_pool_percentage:.1f}"
+        shares = f"{obj.esop_pool_size:,}"
+        authorized = f"{obj.authorized_capital_shares:,}"
+        return f"= {percentage}% of {authorized} authorized shares ({shares} shares)"
+
+    def validate(self, attrs):
+        """Validate and auto-calculate fields"""
+        validated_data = super().validate(attrs) if hasattr(super(), "validate") else attrs
+        
+        # Get instance for updates
+        instance = getattr(self, "instance", None)
+        
+        # Get current values
+        authorized_shares = validated_data.get("authorized_capital_shares")
+        if authorized_shares is None and instance:
+            authorized_shares = instance.authorized_capital_shares
+        
+        face_value = validated_data.get("face_value_per_share")
+        if face_value is None and instance:
+            face_value = instance.face_value_per_share
+        
+        esop_percentage = validated_data.get("esop_pool_percentage")
+        if esop_percentage is None and instance:
+            esop_percentage = instance.esop_pool_percentage
+        
+        # Calculate authorized_capital_amount if shares and face_value are provided
+        if authorized_shares and face_value:
+            if "authorized_capital_amount" not in validated_data:
+                calculated_amount = Decimal(authorized_shares) * Decimal(face_value)
+                validated_data["authorized_capital_amount"] = calculated_amount.quantize(Decimal("0.01"))
+        
+        # Calculate esop_pool_size if percentage and authorized_shares are provided
+        if esop_percentage is not None and authorized_shares:
+            if "esop_pool_size" not in validated_data:
+                calculated_size = int(
+                    (Decimal(esop_percentage) / Decimal("100")) * Decimal(authorized_shares)
+                )
+                validated_data["esop_pool_size"] = calculated_size
+        
+        # Validate ESOP pool doesn't exceed authorized shares
+        esop_size = validated_data.get("esop_pool_size")
+        if esop_size is None and instance:
+            esop_size = instance.esop_pool_size
+        
+        if esop_size and authorized_shares:
+            if esop_size > authorized_shares:
+                raise serializers.ValidationError({
+                    "esop_pool_size": "ESOP pool size cannot exceed authorized shares."
+                })
+        
+        return validated_data

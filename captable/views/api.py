@@ -1434,3 +1434,71 @@ class ESOPPoolHistoryView(APIView):
                 },
             }
         )
+
+
+class CapTableSetupView(APIView):
+    """
+    GET: Retrieve current cap table setup (Authorized Capital and ESOP Pool)
+    PATCH: Update cap table setup
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        """Get current cap table setup"""
+        company_id = request.query_params.get("company_id")
+        if company_id:
+            company = get_object_or_404(
+                Company.objects.filter(
+                    Q(owner=request.user)
+                    | Q(team_members__user=request.user, team_members__is_active=True)
+                ),
+                id=company_id
+            )
+        else:
+            company = Company.objects.filter(owner=request.user).first()
+            if not company:
+                return Response(
+                    {"error": "Company not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        from captable.serializers import CapTableSetupSerializer
+        serializer = CapTableSetupSerializer(company)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, *args, **kwargs):
+        """Update cap table setup (partial update)"""
+        company_id = request.query_params.get("company_id")
+        if company_id:
+            company = get_object_or_404(
+                Company.objects.filter(
+                    Q(owner=request.user)
+                    | Q(team_members__user=request.user, team_members__is_active=True)
+                ),
+                id=company_id
+            )
+        else:
+            company = Company.objects.filter(owner=request.user).first()
+            if not company:
+                return Response(
+                    {"error": "Company not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        from captable.serializers import CapTableSetupSerializer
+        serializer = CapTableSetupSerializer(
+            company,
+            data=request.data,
+            partial=True,
+            context={"request": request}
+        )
+        
+        if serializer.is_valid():
+            serializer.save(updated_by=request.user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, *args, **kwargs):
+        """Update cap table setup (full update)"""
+        return self.patch(request, *args, **kwargs)

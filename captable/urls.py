@@ -6,6 +6,7 @@ from captable.views.api import (
     CapTableEventListCreateView,
     CapTableEventTransactionCreateView,
     CapTableEventTransactionDetailView,
+    CapTableSetupView,
     CapTableSummaryView,
     CapitalizationTableDetailView,
     CapitalizationTableListCreateView,
@@ -125,5 +126,10 @@ urlpatterns = [
         "esop-pool/history/",
         ESOPPoolHistoryView.as_view(),
         name="esop-pool-history",
+    ),
+    path(
+        "setup/",
+        CapTableSetupView.as_view(),
+        name="cap-table-setup",
     ),
 ]
