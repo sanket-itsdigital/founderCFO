@@ -30,22 +30,6 @@ class InvoicesStatusChoices(TextChoices):
     BAD_DEBT = "Bad Debt", "Bad Debt"
 
 
-class OrderTypeChoices(TextChoices):
-    SALES = "Sales", "Sales"
-    PURCHASE = "Purchase", "Purchase"
-    SERVICE = "Service", "Service"
-
-
-class OrderStatusChoices(TextChoices):
-    PENDING = "Pending", "Pending"
-    CONFIRMED = "Confirmed", "Confirmed"
-    PROCESSING = "Processing", "Processing"
-    SHIPPED = "Shipped", "Shipped"
-    DELIVERED = "Delivered", "Delivered"
-    CANCELLED = "Cancelled", "Cancelled"
-    RETURNED = "Returned", "Returned"
-
-
 class PaymentStatusChoices(TextChoices):
     PENDING = "Pending", "Pending"
     PARTIAL = "Partial", "Partial"

@@ -1486,13 +1486,22 @@ class CapTableSetupView(APIView):
         """Get current cap table setup"""
         company_id = request.query_params.get("company_id")
         if company_id:
-            company = get_object_or_404(
-                Company.objects.filter(
-                    Q(owner=request.user)
-                    | Q(team_members__user=request.user, team_members__is_active=True)
-                ),
-                id=company_id,
-            )
+            try:
+                company = Company.objects.get(id=company_id)
+                # Check if user has access to this company
+                if (
+                    company.owner != request.user
+                    and not company.team_members.filter(
+                        user=request.user, is_active=True
+                    ).exists()
+                ):
+                    return Response(
+                        {"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND
+                    )
+            except Company.DoesNotExist:
+                return Response(
+                    {"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND
+                )
         else:
             company = Company.objects.filter(owner=request.user).first()
             if not company:
@@ -1509,13 +1518,22 @@ class CapTableSetupView(APIView):
         """Update cap table setup (partial update)"""
         company_id = request.query_params.get("company_id")
         if company_id:
-            company = get_object_or_404(
-                Company.objects.filter(
-                    Q(owner=request.user)
-                    | Q(team_members__user=request.user, team_members__is_active=True)
-                ),
-                id=company_id,
-            )
+            try:
+                company = Company.objects.get(id=company_id)
+                # Check if user has access to this company
+                if (
+                    company.owner != request.user
+                    and not company.team_members.filter(
+                        user=request.user, is_active=True
+                    ).exists()
+                ):
+                    return Response(
+                        {"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND
+                    )
+            except Company.DoesNotExist:
+                return Response(
+                    {"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND
+                )
         else:
             company = Company.objects.filter(owner=request.user).first()
             if not company:

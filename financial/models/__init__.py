@@ -1,6 +1,5 @@
 from financial.models.account_receivable import Invoice
 from financial.models.credit import Credit
-from financial.models.orders import Order
 from financial.models.reminders import Reminder, ReminderRule
 from financial.models.dunning import DunningQueue, EmailTemplate
 from financial.models.disputes import Dispute
@@ -15,7 +14,6 @@ from financial.models.audit_trail import AuditTrail
 __all__ = [
     "Invoice",
     "Credit",
-    "Order",
     "Reminder",
     "ReminderRule",
     "DunningQueue",
@@ -31,4 +29,3 @@ __all__ = [
     "WriteOff",
     "AuditTrail",
 ]
-
