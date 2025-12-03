@@ -11,10 +11,6 @@ from financial.models import (
     FactoringRequest,
     FactoringRequestInvoice,
     Invoice,
-    PaymentPlan,
-    PaymentPlanInstallment,
-    Reminder,
-    ReminderRule,
     WriteOff,
 )
 from financial.models.customer import Balance_summary
@@ -38,39 +34,7 @@ class InvoiceAdmin(admin.ModelAdmin):
     readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by"]
     date_hierarchy = "invoice_date"
 
-
-@admin.register(ReminderRule)
-class ReminderRuleAdmin(admin.ModelAdmin):
-    list_display = [
-        "id",
-        "company",
-        "rule_name",
-        "trigger_type",
-        "trigger_days",
-        "is_active",
-        "created_at",
-    ]
-    list_filter = ["trigger_type", "is_active", "created_at"]
-    search_fields = ["rule_name", "email_template_name"]
-    readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by"]
-
-
-@admin.register(Reminder)
-class ReminderAdmin(admin.ModelAdmin):
-    list_display = [
-        "id",
-        "company",
-        "invoice",
-        "scheduled_date",
-        "status",
-        "sent_at",
-        "created_at",
-    ]
-    list_filter = ["status", "scheduled_date", "sent_at", "created_at"]
-    search_fields = ["invoice__invoice_number", "invoice__customer_name"]
-    readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by"]
-    date_hierarchy = "scheduled_date"
-
+ 
 
 @admin.register(DunningQueue)
 class DunningQueueAdmin(admin.ModelAdmin):
@@ -124,43 +88,7 @@ class DisputeAdmin(admin.ModelAdmin):
     ]
     readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by"]
     date_hierarchy = "created_at"
-
-
-@admin.register(PaymentPlan)
-class PaymentPlanAdmin(admin.ModelAdmin):
-    list_display = [
-        "id",
-        "company",
-        "invoice",
-        "status",
-        "total_amount",
-        "payment_frequency",
-        "start_date",
-        "created_at",
-    ]
-    list_filter = ["status", "payment_frequency", "start_date", "created_at"]
-    search_fields = ["invoice__invoice_number", "invoice__customer_name"]
-    readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by"]
-    date_hierarchy = "start_date"
-
-
-@admin.register(PaymentPlanInstallment)
-class PaymentPlanInstallmentAdmin(admin.ModelAdmin):
-    list_display = [
-        "id",
-        "payment_plan",
-        "installment_number",
-        "amount",
-        "due_date",
-        "status",
-        "paid_at",
-    ]
-    list_filter = ["status", "due_date", "paid_at"]
-    search_fields = ["payment_plan__invoice__invoice_number"]
-    readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by"]
-    date_hierarchy = "due_date"
-
-
+ 
 @admin.register(CashFlowProjection)
 class CashFlowProjectionAdmin(admin.ModelAdmin):
     list_display = [

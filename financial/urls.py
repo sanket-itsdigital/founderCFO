@@ -1,31 +1,17 @@
 from django.urls import path
 from financial.views.api import (
     ARAgeingSummaryView,
+    ARDashboardView,
     InvoiceListCreateView,
     InvoiceRetrieveUpdateDestroyView,
     CustomerBalanceSummaryView,
     CustomerSegmentsView,
     CollectionPriorityView,
-    RemindersSummaryView,
-    ReminderScheduleListView,
-    ReminderRuleListCreateView,
-    ReminderRuleRetrieveUpdateDestroyView,
-    ReminderHistoryListView,
-    SendReminderView,
-    GenerateRemindersView,
     DunningSummaryView,
     DunningQueueListView,
     GenerateDunningQueueView,
     EmailTemplateListCreateView,
     EmailTemplateRetrieveUpdateDestroyView,
-    DisputesSummaryView,
-    DisputeListCreateView,
-    DisputeRetrieveUpdateView,
-    ResolveDisputeView,
-    PaymentPlansSummaryView,
-    PaymentPlanListCreateView,
-    PaymentPlanRetrieveView,
-    MarkInstallmentPaidView,
     CashFlowProjectionView,
     ReconcileSummaryView,
     BankTransactionListCreateView,
@@ -81,47 +67,17 @@ urlpatterns = [
         ARAgeingSummaryView.as_view(),
         name="ar-ageing-summary",
     ),
+    # AR Dashboard
+    path(
+        "ar-dashboard/",
+        ARDashboardView.as_view(),
+        name="ar-dashboard",
+    ),
     # Collection Priority
     path(
         "collection-priority/",
         CollectionPriorityView.as_view(),
         name="collection-priority",
-    ),
-    # Reminders
-    path(
-        "reminders/summary/",
-        RemindersSummaryView.as_view(),
-        name="reminders-summary",
-    ),
-    path(
-        "reminders/schedule/",
-        ReminderScheduleListView.as_view(),
-        name="reminder-schedule-list",
-    ),
-    path(
-        "reminders/rules/",
-        ReminderRuleListCreateView.as_view(),
-        name="reminder-rule-list-create",
-    ),
-    path(
-        "reminders/rules/<uuid:id>/",
-        ReminderRuleRetrieveUpdateDestroyView.as_view(),
-        name="reminder-rule-detail",
-    ),
-    path(
-        "reminders/history/",
-        ReminderHistoryListView.as_view(),
-        name="reminder-history-list",
-    ),
-    path(
-        "reminders/<uuid:reminder_id>/send/",
-        SendReminderView.as_view(),
-        name="send-reminder",
-    ),
-    path(
-        "reminders/generate/",
-        GenerateRemindersView.as_view(),
-        name="generate-reminders",
     ),
     # Dunning
     path(
@@ -148,48 +104,6 @@ urlpatterns = [
         "dunning/templates/<uuid:id>/",
         EmailTemplateRetrieveUpdateDestroyView.as_view(),
         name="email-template-detail",
-    ),
-    # Disputes
-    path(
-        "disputes/summary/",
-        DisputesSummaryView.as_view(),
-        name="disputes-summary",
-    ),
-    path(
-        "disputes/",
-        DisputeListCreateView.as_view(),
-        name="dispute-list-create",
-    ),
-    path(
-        "disputes/<uuid:id>/",
-        DisputeRetrieveUpdateView.as_view(),
-        name="dispute-detail",
-    ),
-    path(
-        "disputes/<uuid:dispute_id>/resolve/",
-        ResolveDisputeView.as_view(),
-        name="resolve-dispute",
-    ),
-    # Payment Plans
-    path(
-        "payment-plans/summary/",
-        PaymentPlansSummaryView.as_view(),
-        name="payment-plans-summary",
-    ),
-    path(
-        "payment-plans/",
-        PaymentPlanListCreateView.as_view(),
-        name="payment-plan-list-create",
-    ),
-    path(
-        "payment-plans/<uuid:id>/",
-        PaymentPlanRetrieveView.as_view(),
-        name="payment-plan-detail",
-    ),
-    path(
-        "payment-plans/installments/<uuid:installment_id>/mark-paid/",
-        MarkInstallmentPaidView.as_view(),
-        name="mark-installment-paid",
     ),
     # Cash Flow
     path(

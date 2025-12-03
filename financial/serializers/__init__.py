@@ -1,19 +1,8 @@
 from financial.serializers.ar_aging import ARAgeingSummarySerializer
 from financial.serializers.collection_priority import CollectionPrioritySerializer
-from financial.serializers.reminders import (
-    ReminderRuleSerializer,
-    ReminderScheduleSerializer,
-    ReminderHistorySerializer,
-)
 from financial.serializers.dunning import (
     DunningQueueSerializer,
     EmailTemplateSerializer,
-)
-from financial.serializers.disputes import DisputeSerializer, DisputeCreateSerializer
-from financial.serializers.payment_plans import (
-    PaymentPlanSerializer,
-    PaymentPlanCreateSerializer,
-    PaymentPlanInstallmentSerializer,
 )
 from financial.serializers.cash_flow import CashFlowProjectionSerializer
 from financial.serializers.reconcile import (
@@ -53,20 +42,13 @@ from financial.serializers.customer_segments import (
     CustomerSegmentDetailSerializer,
     SegmentDetailSerializer,
 )
+from financial.serializers.ar_dashboard import ARDashboardSerializer
 
 __all__ = [
     "ARAgeingSummarySerializer",
     "CollectionPrioritySerializer",
-    "ReminderRuleSerializer",
-    "ReminderScheduleSerializer",
-    "ReminderHistorySerializer",
     "DunningQueueSerializer",
     "EmailTemplateSerializer",
-    "DisputeSerializer",
-    "DisputeCreateSerializer",
-    "PaymentPlanSerializer",
-    "PaymentPlanCreateSerializer",
-    "PaymentPlanInstallmentSerializer",
     "CashFlowProjectionSerializer",
     "BankTransactionSerializer",
     "UnmatchedInvoiceSerializer",
@@ -92,4 +74,5 @@ __all__ = [
     "SegmentSummarySerializer",
     "CustomerSegmentDetailSerializer",
     "SegmentDetailSerializer",
+    "ARDashboardSerializer",
 ]
