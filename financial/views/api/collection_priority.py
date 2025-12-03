@@ -10,7 +10,6 @@ from rest_framework.views import APIView
 
 from accounts.models import Company
 from financial.models.account_receivable import Invoice
-from financial.models.credit import Credit
 from financial.enums import InvoicesStatusChoices, RiskLevelChoices
 from financial.serializers.collection_priority import CollectionPrioritySerializer
 
@@ -163,7 +162,6 @@ class CollectionPriorityView(APIView):
         
         # Get credit information for all customers
         company = get_company_from_request(request)
-        credits = {credit.customer_name: credit for credit in Credit.objects.filter(company=company)}
         
         # Process invoices
         for invoice in invoices:

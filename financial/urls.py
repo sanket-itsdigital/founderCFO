@@ -1,8 +1,8 @@
 from django.urls import path
 from financial.views.api import (
     ARAgeingSummaryView,
-    CreditListView,
-    CreditRetrieveUpdateView,
+    InvoiceListCreateView,
+    InvoiceRetrieveUpdateDestroyView,
     CollectionPriorityView,
     RemindersSummaryView,
     ReminderScheduleListView,
@@ -50,23 +50,24 @@ from financial.views.api import (
 app_name = "financial"
 
 urlpatterns = [
+    # Invoices
+    path(
+        "invoices/",
+        InvoiceListCreateView.as_view(),
+        name="invoice-list-create",
+    ),
+    path(
+        "invoices/<uuid:id>/",
+        InvoiceRetrieveUpdateDestroyView.as_view(),
+        name="invoice-detail",
+    ),
     # AR Ageing
     path(
         "ar-ageing-summary/",
         ARAgeingSummaryView.as_view(),
         name="ar-ageing-summary",
     ),
-    # Credits
-    path(
-        "credits/",
-        CreditListView.as_view(),
-        name="credit-list",
-    ),
-    path(
-        "credits/<uuid:id>/",
-        CreditRetrieveUpdateView.as_view(),
-        name="credit-detail",
-    ),
+   
     # Collection Priority
     path(
         "collection-priority/",

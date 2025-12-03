@@ -1,5 +1,4 @@
 from financial.views.api.ar_aging import ARAgeingSummaryView
-from financial.views.api.credit import CreditListView, CreditRetrieveUpdateView
 from financial.views.api.collection_priority import CollectionPriorityView
 from financial.views.api.reminders import (
     RemindersSummaryView,
@@ -60,6 +59,10 @@ from financial.views.api.audit_trail import (
     AuditTrailSummaryView,
     AuditTrailListView,
 )
+from financial.views.api.invoice import (
+    InvoiceListCreateView,
+    InvoiceRetrieveUpdateDestroyView,
+)
 
 __all__ = [
     "ARAgeingSummaryView",
@@ -107,5 +110,7 @@ __all__ = [
     "WriteOffSelectedView",
     "AuditTrailSummaryView",
     "AuditTrailListView",
+    "InvoiceListCreateView",
+    "InvoiceRetrieveUpdateDestroyView",
 ]
 
