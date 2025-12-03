@@ -848,6 +848,159 @@ All endpoints may return the following error responses:
 
 ---
 
+## 6. Collection Priority API
+
+Get collection priority dashboard with prioritized customer list for collections.
+
+**Endpoint:** `GET /api/financial/collection-priority/`
+
+**Query Parameters:**
+- `company_id` (optional): UUID of the company
+
+**Request Example:**
+```http
+GET /api/financial/collection-priority/?company_id=123e4567-e89b-12d3-a456-426614174000
+```
+
+**Response Example:**
+```json
+{
+  "summary": {
+    "critical_count": 9,
+    "high_priority_count": 0,
+    "total_overdue": 16400000.00,
+    "total_overdue_display": "₹1.64Cr",
+    "expected_recovery": 6697000.00,
+    "expected_recovery_display": "₹66.97L",
+    "total_customers": 11
+  },
+  "customers": [
+    {
+      "customer_name": "Stellar Systems",
+      "invoice_count": 2,
+      "priority": "Critical",
+      "priority_color": "#EF4444",
+      "outstanding": 2140000.00,
+      "outstanding_display": "₹21.40L",
+      "days_overdue": 60,
+      "recovery_percentage": 40.0,
+      "recommended_action": "Escalate to management"
+    },
+    {
+      "customer_name": "EcoTech Industries",
+      "invoice_count": 2,
+      "priority": "Critical",
+      "priority_color": "#EF4444",
+      "outstanding": 1979000.00,
+      "outstanding_display": "₹19.79L",
+      "days_overdue": 54,
+      "recovery_percentage": 40.0,
+      "recommended_action": "Escalate to management"
+    },
+    {
+      "customer_name": "GlobalTech Inc",
+      "invoice_count": 1,
+      "priority": "Critical",
+      "priority_color": "#EF4444",
+      "outstanding": 1476000.00,
+      "outstanding_display": "₹14.76L",
+      "days_overdue": 19,
+      "recovery_percentage": 50.0,
+      "recommended_action": "Immediate follow-up required"
+    },
+    {
+      "customer_name": "SmartSoft Solutions",
+      "invoice_count": 1,
+      "priority": "Critical",
+      "priority_color": "#EF4444",
+      "outstanding": 1357000.00,
+      "outstanding_display": "₹13.57L",
+      "days_overdue": 14,
+      "recovery_percentage": 50.0,
+      "recommended_action": "Immediate follow-up required"
+    },
+    {
+      "customer_name": "Acme Technologies Pvt Ltd",
+      "invoice_count": 2,
+      "priority": "Critical",
+      "priority_color": "#EF4444",
+      "outstanding": 1215000.00,
+      "outstanding_display": "₹12.15L",
+      "days_overdue": 105,
+      "recovery_percentage": 40.0,
+      "recommended_action": "Escalate to management"
+    },
+    {
+      "customer_name": "NextGen Enterprises",
+      "invoice_count": 2,
+      "priority": "Critical",
+      "priority_color": "#EF4444",
+      "outstanding": 681000.00,
+      "outstanding_display": "₹6.81L",
+      "days_overdue": 96,
+      "recovery_percentage": 40.0,
+      "recommended_action": "Escalate to management"
+    }
+  ],
+  "collection_tips": [
+    "Focus on Critical and High priority customers first",
+    "For 90+ days overdue, consider offering payment plans",
+    "Early payment discounts can accelerate collections by 20-30%",
+    "Regular follow-up calls improve recovery probability by 15%"
+  ]
+}
+```
+
+**Response Fields:**
+
+### Summary Section
+- `critical_count`: Number of customers with Critical priority (integer)
+- `high_priority_count`: Number of customers with High priority (integer)
+- `total_overdue`: Total overdue amount across all customers (float)
+- `total_overdue_display`: Formatted total overdue (₹XX.XXCr or ₹XX.XXL)
+- `expected_recovery`: Expected recovery amount based on recovery percentages (float)
+- `expected_recovery_display`: Formatted expected recovery (₹XX.XXL)
+- `total_customers`: Total number of customers with overdue invoices (integer)
+
+### Customers Array
+- `customer_name`: Name of the customer (string)
+- `invoice_count`: Number of overdue invoices for this customer (integer)
+- `priority`: Priority level (Critical, High, Medium, Low)
+- `priority_color`: Color code for priority badge (hex color)
+- `outstanding`: Outstanding amount for this customer (float)
+- `outstanding_display`: Formatted outstanding amount (₹XX.XXL)
+- `days_overdue`: Days overdue based on oldest invoice (integer)
+- `recovery_percentage`: Estimated recovery percentage (float)
+- `recommended_action`: Recommended action for collection (string)
+
+### Collection Tips Array
+- Array of actionable tips for collections (strings)
+
+**Priority Classification:**
+- **Critical**: 90+ days overdue OR (60+ days AND high risk) OR (outstanding > ₹50L AND 30+ days)
+- **High Priority**: 60+ days overdue OR (30+ days AND medium/high risk) OR (outstanding > ₹20L AND 15+ days)
+- **Medium Priority**: 30+ days overdue OR medium risk
+- **Low Priority**: Everything else
+
+**Recovery Percentage Calculation:**
+- Critical (120+ days): 30%
+- Critical (90-119 days): 40%
+- Critical (<90 days): 50%
+- High Priority (high risk): 50%
+- High Priority (other): 60%
+- Medium Priority: 70%
+- Low Priority: 85%
+
+**Recommended Actions:**
+- Critical (90+ days): "Escalate to management"
+- Critical (<90 days): "Immediate follow-up required"
+- High Priority (60+ days): "Schedule payment plan discussion"
+- High Priority (<60 days): "Send reminder notice"
+- Medium Priority: "Standard follow-up"
+- Low Priority: "Monitor payment status"
+
+---
+
 ## Notes
 
 1. **Amount Formatting**: All amounts are returned as floats, with display formats in lakhs (₹XX.XXL) or crores (₹XX.XXCr) for readability.

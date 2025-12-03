@@ -7,25 +7,10 @@ from financial.views.api import (
     CustomerBalanceSummaryView,
     CustomerSegmentsView,
     CollectionPriorityView,
-    DunningSummaryView,
-    DunningQueueListView,
-    GenerateDunningQueueView,
-    EmailTemplateListCreateView,
-    EmailTemplateRetrieveUpdateDestroyView,
+    
     CashFlowProjectionView,
-    ReconcileSummaryView,
-    BankTransactionListCreateView,
-    UnmatchedInvoicesListView,
-    MatchTransactionView,
-    AutoMatchView,
-    DiscountsSummaryView,
-    DiscountProgramListCreateView,
-    DiscountProgramRetrieveUpdateDestroyView,
-    EligibleInvoicesListView,
-    FactoringSummaryView,
-    FactoringRequestListCreateView,
-    FactoringRequestRetrieveView,
-    AvailableInvoicesListView,
+    
+    
     AnalyticsView,
     WriteOffsSummaryView,
     WriteOffCandidatesListView,
@@ -79,142 +64,12 @@ urlpatterns = [
         CollectionPriorityView.as_view(),
         name="collection-priority",
     ),
-    # Dunning
-    path(
-        "dunning/summary/",
-        DunningSummaryView.as_view(),
-        name="dunning-summary",
-    ),
-    path(
-        "dunning/queue/",
-        DunningQueueListView.as_view(),
-        name="dunning-queue-list",
-    ),
-    path(
-        "dunning/generate/",
-        GenerateDunningQueueView.as_view(),
-        name="generate-dunning-queue",
-    ),
-    path(
-        "dunning/templates/",
-        EmailTemplateListCreateView.as_view(),
-        name="email-template-list-create",
-    ),
-    path(
-        "dunning/templates/<uuid:id>/",
-        EmailTemplateRetrieveUpdateDestroyView.as_view(),
-        name="email-template-detail",
-    ),
+     
     # Cash Flow
     path(
         "cash-flow/projection/",
         CashFlowProjectionView.as_view(),
         name="cash-flow-projection",
     ),
-    # Reconcile
-    path(
-        "reconcile/summary/",
-        ReconcileSummaryView.as_view(),
-        name="reconcile-summary",
-    ),
-    path(
-        "reconcile/transactions/",
-        BankTransactionListCreateView.as_view(),
-        name="bank-transaction-list-create",
-    ),
-    path(
-        "reconcile/invoices/",
-        UnmatchedInvoicesListView.as_view(),
-        name="unmatched-invoices-list",
-    ),
-    path(
-        "reconcile/match/",
-        MatchTransactionView.as_view(),
-        name="match-transaction",
-    ),
-    path(
-        "reconcile/auto-match/",
-        AutoMatchView.as_view(),
-        name="auto-match",
-    ),
-    # Discounts
-    path(
-        "discounts/summary/",
-        DiscountsSummaryView.as_view(),
-        name="discounts-summary",
-    ),
-    path(
-        "discounts/programs/",
-        DiscountProgramListCreateView.as_view(),
-        name="discount-program-list-create",
-    ),
-    path(
-        "discounts/programs/<uuid:id>/",
-        DiscountProgramRetrieveUpdateDestroyView.as_view(),
-        name="discount-program-detail",
-    ),
-    path(
-        "discounts/eligible-invoices/",
-        EligibleInvoicesListView.as_view(),
-        name="eligible-invoices-list",
-    ),
-    # Factoring
-    path(
-        "factoring/summary/",
-        FactoringSummaryView.as_view(),
-        name="factoring-summary",
-    ),
-    path(
-        "factoring/requests/",
-        FactoringRequestListCreateView.as_view(),
-        name="factoring-request-list-create",
-    ),
-    path(
-        "factoring/requests/<uuid:id>/",
-        FactoringRequestRetrieveView.as_view(),
-        name="factoring-request-detail",
-    ),
-    path(
-        "factoring/available-invoices/",
-        AvailableInvoicesListView.as_view(),
-        name="available-invoices-list",
-    ),
-    # Reports - Analytics
-    path(
-        "reports/analytics/",
-        AnalyticsView.as_view(),
-        name="analytics",
-    ),
-    # Reports - Write-offs
-    path(
-        "reports/write-offs/summary/",
-        WriteOffsSummaryView.as_view(),
-        name="write-offs-summary",
-    ),
-    path(
-        "reports/write-offs/candidates/",
-        WriteOffCandidatesListView.as_view(),
-        name="write-off-candidates-list",
-    ),
-    path(
-        "reports/write-offs/",
-        WriteOffListCreateView.as_view(),
-        name="write-off-list-create",
-    ),
-    path(
-        "reports/write-offs/write-off-selected/",
-        WriteOffSelectedView.as_view(),
-        name="write-off-selected",
-    ),
-    # Reports - Audit Trail
-    path(
-        "reports/audit-trail/summary/",
-        AuditTrailSummaryView.as_view(),
-        name="audit-trail-summary",
-    ),
-    path(
-        "reports/audit-trail/",
-        AuditTrailListView.as_view(),
-        name="audit-trail-list",
-    ),
+     
 ]

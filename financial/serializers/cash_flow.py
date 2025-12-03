@@ -1,60 +1,43 @@
 from rest_framework import serializers
-from financial.models.cash_flow import CashFlowProjection
 
 
-class CashFlowProjectionSerializer(serializers.ModelSerializer):
-    """Serializer for Cash Flow Projection"""
-    due_amount_display = serializers.SerializerMethodField()
-    expected_collection_display = serializers.SerializerMethodField()
-    optimistic_collection_display = serializers.SerializerMethodField()
-    conservative_collection_display = serializers.SerializerMethodField()
-    date_display = serializers.SerializerMethodField()
+class CashFlowProjectionDataSerializer(serializers.Serializer):
+    """Serializer for individual projection data point"""
+    projection_date = serializers.DateField()
+    date_display = serializers.CharField()
+    due_amount = serializers.FloatField()
+    due_amount_display = serializers.CharField()
+    expected_collection = serializers.FloatField()
+    expected_collection_display = serializers.CharField()
+    optimistic_collection = serializers.FloatField()
+    optimistic_collection_display = serializers.CharField()
+    conservative_collection = serializers.FloatField()
+    conservative_collection_display = serializers.CharField()
 
-    class Meta:
-        model = CashFlowProjection
-        fields = [
-            "id",
-            "projection_date",
-            "date_display",
-            "due_amount",
-            "due_amount_display",
-            "expected_collection",
-            "expected_collection_display",
-            "optimistic_collection",
-            "optimistic_collection_display",
-            "conservative_collection",
-            "conservative_collection_display",
-            "projection_type",
-        ]
 
-    def get_due_amount_display(self, obj):
-        from decimal import Decimal
-        if obj.due_amount == 0:
-            return "₹0.00L"
-        lakhs = obj.due_amount / Decimal("100000")
-        return f"₹{lakhs.quantize(Decimal('0.01'))}L"
+class CashFlowProjectionSummarySerializer(serializers.Serializer):
+    """Serializer for cash flow projection summary"""
+    next_30_days = serializers.FloatField()
+    next_30_days_display = serializers.CharField()
+    next_60_days = serializers.FloatField()
+    next_60_days_display = serializers.CharField()
+    next_90_days = serializers.FloatField()
+    next_90_days_display = serializers.CharField()
+    total_due = serializers.FloatField()
+    total_due_display = serializers.CharField()
 
-    def get_expected_collection_display(self, obj):
-        from decimal import Decimal
-        if obj.expected_collection == 0:
-            return "₹0.00L"
-        lakhs = obj.expected_collection / Decimal("100000")
-        return f"₹{lakhs.quantize(Decimal('0.01'))}L"
 
-    def get_optimistic_collection_display(self, obj):
-        from decimal import Decimal
-        if obj.optimistic_collection == 0:
-            return "₹0.00L"
-        lakhs = obj.optimistic_collection / Decimal("100000")
-        return f"₹{lakhs.quantize(Decimal('0.01'))}L"
+class CashFlowRiskAnalysisSerializer(serializers.Serializer):
+    """Serializer for cash flow risk analysis"""
+    collection_rate_assumption = serializers.CharField()
+    high_risk_invoices = serializers.IntegerField()
+    high_risk_invoices_display = serializers.CharField()
+    expected_vs_total_due = serializers.CharField()
 
-    def get_conservative_collection_display(self, obj):
-        from decimal import Decimal
-        if obj.conservative_collection == 0:
-            return "₹0.00L"
-        lakhs = obj.conservative_collection / Decimal("100000")
-        return f"₹{lakhs.quantize(Decimal('0.01'))}L"
 
-    def get_date_display(self, obj):
-        return obj.projection_date.strftime("%b %d")
-
+class CashFlowProjectionResponseSerializer(serializers.Serializer):
+    """Main serializer for Cash Flow Projection API response"""
+    summary = CashFlowProjectionSummarySerializer()
+    projections = serializers.ListField(child=CashFlowProjectionDataSerializer())
+    risk_analysis = CashFlowRiskAnalysisSerializer()
+    projection_type = serializers.CharField()

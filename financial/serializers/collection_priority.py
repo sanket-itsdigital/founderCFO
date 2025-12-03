@@ -29,4 +29,5 @@ class CollectionPrioritySerializer(serializers.Serializer):
     """Main serializer for Collection Priority dashboard"""
     summary = CollectionPrioritySummarySerializer()
     customers = CollectionPriorityCustomerSerializer(many=True)
+    collection_tips = serializers.ListField(child=serializers.CharField())
 

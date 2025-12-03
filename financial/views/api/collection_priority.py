@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from accounts.models import Company
 from financial.models.account_receivable import Invoice
+from financial.models.credit import Credit
 from financial.enums import InvoicesStatusChoices, RiskLevelChoices
 from financial.serializers.collection_priority import CollectionPrioritySerializer
 
@@ -142,12 +143,18 @@ class CollectionPriorityView(APIView):
                     "critical_count": 0,
                     "high_priority_count": 0,
                     "total_overdue": 0,
-                    "total_overdue_display": "₹0.00L",
+                    "total_overdue_display": "₹0.00Cr",
                     "expected_recovery": 0,
                     "expected_recovery_display": "₹0.00L",
                     "total_customers": 0,
                 },
-                "customers": []
+                "customers": [],
+                "collection_tips": [
+                    "Focus on Critical and High priority customers first",
+                    "For 90+ days overdue, consider offering payment plans",
+                    "Early payment discounts can accelerate collections by 20-30%",
+                    "Regular follow-up calls improve recovery probability by 15%"
+                ]
             })
 
         today = timezone.now().date()
@@ -162,6 +169,33 @@ class CollectionPriorityView(APIView):
         
         # Get credit information for all customers
         company = get_company_from_request(request)
+        if not company:
+            return Response({
+                "summary": {
+                    "critical_count": 0,
+                    "high_priority_count": 0,
+                    "total_overdue": 0,
+                    "total_overdue_display": "₹0.00Cr",
+                    "expected_recovery": 0,
+                    "expected_recovery_display": "₹0.00L",
+                    "total_customers": 0,
+                },
+                "customers": [],
+                "collection_tips": []
+            })
+        
+        # Fetch all credit records for customers
+        customer_names = set()
+        for invoice in invoices:
+            customer_names.add(invoice.customer_name)
+        
+        credits = {
+            credit.customer_name: credit
+            for credit in Credit.objects.filter(
+                company=company,
+                customer_name__in=customer_names
+            )
+        }
         
         # Process invoices
         for invoice in invoices:
@@ -248,9 +282,18 @@ class CollectionPriorityView(APIView):
             "total_customers": len(customers_list),
         }
         
+        # Collection Tips
+        collection_tips = [
+            "Focus on Critical and High priority customers first",
+            "For 90+ days overdue, consider offering payment plans",
+            "Early payment discounts can accelerate collections by 20-30%",
+            "Regular follow-up calls improve recovery probability by 15%"
+        ]
+        
         response_data = {
             "summary": summary,
             "customers": customers_list,
+            "collection_tips": collection_tips,
         }
         
         # Validate with serializer
