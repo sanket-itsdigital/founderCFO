@@ -3,6 +3,7 @@ from django.contrib import admin
 from financial.models import (
     AuditTrail,
     BankTransaction,
+    BillPayment,
     CashFlowProjection,
     Credit,
     Dispute,
@@ -425,3 +426,48 @@ class PaymentPlanInstallmentAdmin(admin.ModelAdmin):
         "is_overdue",
     ]
     date_hierarchy = "due_date"
+
+
+@admin.register(BillPayment)
+class BillPaymentAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "company",
+        "bill",
+        "payment_date",
+        "amount",
+        "payment_method",
+        "reference_number",
+        "tds_deducted",
+        "discount_taken",
+        "created_at",
+    ]
+    list_filter = ["payment_method", "payment_date", "created_at", "company"]
+    search_fields = [
+        "bill__bill_number",
+        "bill__vendor_name",
+        "reference_number",
+        "bank_name",
+    ]
+    readonly_fields = [
+        "id",
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+    ]
+    date_hierarchy = "payment_date"
+    fieldsets = (
+        ("Basic Information", {
+            "fields": ("company", "bill", "payment_date", "amount", "payment_method")
+        }),
+        ("Payment Details", {
+            "fields": ("reference_number", "bank_name")
+        }),
+        ("Deductions", {
+            "fields": ("tds_deducted", "discount_taken")
+        }),
+        ("Additional", {
+            "fields": ("notes",)
+        }),
+    )

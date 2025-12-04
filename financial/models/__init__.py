@@ -9,12 +9,14 @@ from financial.models.account_receivable.discounts import DiscountProgram
 from financial.models.account_receivable.factoring import FactoringRequest, FactoringRequestInvoice
 from financial.models.account_receivable.write_offs import WriteOff
 from financial.models.account_receivable.audit_trail import AuditTrail
-from financial.models.account_payable import Vendor, Bill
+from financial.models.account_payable import Vendor, Bill, BillPayment, PaymentMethodChoices
 
 __all__ = [
     "Invoice",
     "Vendor",
     "Bill",
+    "BillPayment",
+    "PaymentMethodChoices",
     "Credit",
     "DunningQueue",
     "EmailTemplate",

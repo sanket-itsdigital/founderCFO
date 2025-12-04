@@ -8,6 +8,9 @@ from financial.views.api.account_payable.ap_aging import (
 )
 from financial.views.api.account_payable.vendor_balance import VendorBalanceSummaryView
 from financial.views.api.account_payable.payment_priority import PaymentPriorityQueueView
+from financial.views.api.account_payable.payment_scheduler import PaymentSchedulerView
+from financial.views.api.account_payable.record_payment import RecordPaymentView
+from financial.views.api.account_payable.cash_flow_projection import APCashFlowProjectionView
 
 __all__ = [
     "BillListCreateView",
@@ -15,6 +18,9 @@ __all__ = [
     "APAgeingSummaryView",
     "VendorBalanceSummaryView",
     "PaymentPriorityQueueView",
+    "PaymentSchedulerView",
+    "RecordPaymentView",
+    "APCashFlowProjectionView",
     "get_company_from_request",
 ]
 

@@ -13,6 +13,9 @@ from financial.views.api import (
     APAgeingSummaryView,
     VendorBalanceSummaryView,
     PaymentPriorityQueueView,
+    PaymentSchedulerView,
+    RecordPaymentView,
+    APCashFlowProjectionView,
     CashFlowProjectionView,
     AnalyticsView,
     WriteOffsSummaryView,
@@ -104,5 +107,20 @@ urlpatterns = [
         "payable/payment-priority/",
         PaymentPriorityQueueView.as_view(),
         name="payment-priority-queue",
+    ),
+    path(
+        "payable/payment-scheduler/",
+        PaymentSchedulerView.as_view(),
+        name="payment-scheduler",
+    ),
+    path(
+        "payable/record-payment/",
+        RecordPaymentView.as_view(),
+        name="record-payment",
+    ),
+    path(
+        "payable/cash-flow-projection/",
+        APCashFlowProjectionView.as_view(),
+        name="ap-cash-flow-projection",
     ),
 ]
