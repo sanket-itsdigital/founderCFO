@@ -21,6 +21,8 @@ from financial.serializers.account_payable import (
     APAgeingBucketSerializer,
     VendorBalanceSummarySerializer,
     VendorBalanceVendorSerializer,
+    PaymentPriorityQueueSerializer,
+    PaymentPriorityBillSerializer,
 )
 from financial.serializers.account_receivable.cash_flow import (
     CashFlowProjectionResponseSerializer,
@@ -77,4 +79,6 @@ __all__ = [
     "APAgeingBucketSerializer",
     "VendorBalanceSummarySerializer",
     "VendorBalanceVendorSerializer",
+    "PaymentPriorityQueueSerializer",
+    "PaymentPriorityBillSerializer",
 ]

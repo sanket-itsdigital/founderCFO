@@ -12,6 +12,7 @@ from financial.views.api import (
     BillRetrieveUpdateDestroyView,
     APAgeingSummaryView,
     VendorBalanceSummaryView,
+    PaymentPriorityQueueView,
     CashFlowProjectionView,
     AnalyticsView,
     WriteOffsSummaryView,
@@ -98,5 +99,10 @@ urlpatterns = [
         "payable/vendors/balance-summary/",
         VendorBalanceSummaryView.as_view(),
         name="vendor-balance-summary",
+    ),
+    path(
+        "payable/payment-priority/",
+        PaymentPriorityQueueView.as_view(),
+        name="payment-priority-queue",
     ),
 ]
