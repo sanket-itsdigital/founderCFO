@@ -11,8 +11,12 @@ from rest_framework.views import APIView
 from accounts.models import Company
 from financial.models.account_receivable import Invoice
 from financial.models.credit import Credit
-from financial.enums import InvoicesStatusChoices
-from financial.serializers.customer_balance import CustomerBalanceSummarySerializer
+from financial.enums import InvoicesStatusChoices, RiskLevelChoices
+from financial.serializers.customer_balance import (
+    CustomerBalanceSummarySerializer,
+    CustomerBalanceDetailSerializer,
+    CustomerBalanceUpdateSerializer,
+)
 from financial.views.api.ar_aging import get_company_from_request
 
 
@@ -171,3 +175,202 @@ class CustomerBalanceSummaryView(APIView):
         serializer.is_valid(raise_exception=True)
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class CustomerBalanceDetailView(APIView):
+    """
+    API view for individual customer balance operations.
+    GET: Retrieve customer balance details
+    PUT/PATCH: Update customer credit information
+    DELETE: Delete customer credit record
+    """
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _in_lakhs(amount: Decimal) -> str:
+        """Convert amount to lakhs format (₹XX.XXL)"""
+        if amount == 0:
+            return "₹0.00L"
+        lakhs = amount / Decimal("100000")
+        return f"₹{lakhs.quantize(Decimal('0.01'))}L"
+
+    def _get_customer_balance_data(self, company, customer_name):
+        """Calculate customer balance data from invoices"""
+        today = timezone.now().date()
+        
+        # Get all outstanding invoices for this customer
+        invoices = (
+            Invoice.objects.filter(
+                company=company,
+                customer_name=customer_name
+            )
+            .exclude(
+                status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
+            )
+            .filter(total_amount__gt=F("paid_amount"))
+        )
+
+        # Calculate outstanding amount
+        outstanding = sum(invoice.balance_amount for invoice in invoices)
+        
+        # Calculate average days outstanding
+        avg_days = 0
+        if invoices:
+            max_days = 0
+            for invoice in invoices:
+                days_since_invoice = (today - invoice.invoice_date).days
+                if days_since_invoice > max_days:
+                    max_days = days_since_invoice
+            avg_days = max_days
+
+        return outstanding, len(invoices), avg_days
+
+    def get(self, request, customer_name, *args, **kwargs):
+        """Get individual customer balance details"""
+        company = get_company_from_request(request)
+        if not company:
+            return Response(
+                {"error": "Company not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get or create credit record
+        try:
+            credit = Credit.objects.get(
+                company=company,
+                customer_name=customer_name
+            )
+        except Credit.DoesNotExist:
+            # Create default credit record
+            credit = Credit.objects.create(
+                company=company,
+                customer_name=customer_name,
+                credit_limit=Decimal("500000.00"),
+                created_by=request.user if request.user.is_authenticated else None,
+                updated_by=request.user if request.user.is_authenticated else None,
+            )
+
+        # Calculate balance data
+        outstanding, invoice_count, avg_days = self._get_customer_balance_data(
+            company, customer_name
+        )
+
+        # Calculate utilization
+        utilization = 0.0
+        if credit.credit_limit > 0:
+            utilization = float((outstanding / credit.credit_limit) * 100)
+
+        response_data = {
+            "customer_name": customer_name,
+            "outstanding": float(outstanding),
+            "outstanding_display": self._in_lakhs(outstanding),
+            "credit_limit": float(credit.credit_limit),
+            "credit_limit_display": self._in_lakhs(credit.credit_limit),
+            "utilization": round(utilization, 1),
+            "invoices": invoice_count,
+            "avg_days": avg_days,
+            "payment_score": credit.payment_score,
+            "risk_level": credit.risk_level,
+            "avg_days_to_pay": credit.avg_days_to_pay,
+        }
+
+        serializer = CustomerBalanceDetailSerializer(data=response_data)
+        serializer.is_valid(raise_exception=True)
+
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+    def put(self, request, customer_name, *args, **kwargs):
+        """Update customer credit information (full update)"""
+        return self._update(request, customer_name, partial=False)
+
+    def patch(self, request, customer_name, *args, **kwargs):
+        """Update customer credit information (partial update)"""
+        return self._update(request, customer_name, partial=True)
+
+    def _update(self, request, customer_name, partial=False):
+        """Update customer credit information"""
+        company = get_company_from_request(request)
+        if not company:
+            return Response(
+                {"error": "Company not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Validate input
+        serializer = CustomerBalanceUpdateSerializer(data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        # Get or create credit record
+        credit, created = Credit.objects.get_or_create(
+            company=company,
+            customer_name=customer_name,
+            defaults={
+                "credit_limit": Decimal("500000.00"),
+                "created_by": request.user if request.user.is_authenticated else None,
+                "updated_by": request.user if request.user.is_authenticated else None,
+            },
+        )
+
+        # Update fields
+        if "credit_limit" in serializer.validated_data:
+            credit.credit_limit = Decimal(str(serializer.validated_data["credit_limit"]))
+        if "payment_score" in serializer.validated_data:
+            credit.payment_score = serializer.validated_data["payment_score"]
+        if "risk_level" in serializer.validated_data:
+            credit.risk_level = serializer.validated_data["risk_level"]
+        
+        credit.updated_by = request.user if request.user.is_authenticated else None
+        credit.save()
+
+        # Calculate updated balance data
+        outstanding, invoice_count, avg_days = self._get_customer_balance_data(
+            company, customer_name
+        )
+
+        utilization = 0.0
+        if credit.credit_limit > 0:
+            utilization = float((outstanding / credit.credit_limit) * 100)
+
+        response_data = {
+            "customer_name": customer_name,
+            "outstanding": float(outstanding),
+            "outstanding_display": self._in_lakhs(outstanding),
+            "credit_limit": float(credit.credit_limit),
+            "credit_limit_display": self._in_lakhs(credit.credit_limit),
+            "utilization": round(utilization, 1),
+            "invoices": invoice_count,
+            "avg_days": avg_days,
+            "payment_score": credit.payment_score,
+            "risk_level": credit.risk_level,
+            "avg_days_to_pay": credit.avg_days_to_pay,
+        }
+
+        response_serializer = CustomerBalanceDetailSerializer(data=response_data)
+        response_serializer.is_valid(raise_exception=True)
+
+        return Response(response_serializer.validated_data, status=status.HTTP_200_OK)
+
+    def delete(self, request, customer_name, *args, **kwargs):
+        """Delete customer credit record"""
+        company = get_company_from_request(request)
+        if not company:
+            return Response(
+                {"error": "Company not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            credit = Credit.objects.get(
+                company=company,
+                customer_name=customer_name
+            )
+            credit.delete()
+            return Response(
+                {"message": f"Credit record for {customer_name} deleted successfully"},
+                status=status.HTTP_200_OK,
+            )
+        except Credit.DoesNotExist:
+            return Response(
+                {"error": f"Credit record for {customer_name} not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )

@@ -24,6 +24,8 @@ from financial.serializers.invoice import InvoiceSerializer, InvoiceCreateSerial
 from financial.serializers.customer_balance import (
     CustomerBalanceSerializer,
     CustomerBalanceSummarySerializer,
+    CustomerBalanceDetailSerializer,
+    CustomerBalanceUpdateSerializer,
 )
 from financial.serializers.customer_segments import (
     CustomerSegmentsSerializer,
@@ -54,6 +56,8 @@ __all__ = [
     "InvoiceCreateSerializer",
     "CustomerBalanceSerializer",
     "CustomerBalanceSummarySerializer",
+    "CustomerBalanceDetailSerializer",
+    "CustomerBalanceUpdateSerializer",
     "CustomerSegmentsSerializer",
     "SegmentSummarySerializer",
     "CustomerSegmentDetailSerializer",

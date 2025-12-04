@@ -5,6 +5,7 @@ from financial.views.api import (
     InvoiceListCreateView,
     InvoiceRetrieveUpdateDestroyView,
     CustomerBalanceSummaryView,
+    CustomerBalanceDetailView,
     CustomerSegmentsView,
     CollectionPriorityView,
     
@@ -39,6 +40,11 @@ urlpatterns = [
         "customers/balance-summary/",
         CustomerBalanceSummaryView.as_view(),
         name="customer-balance-summary",
+    ),
+    path(
+        "customers/balance-summary/<str:customer_name>/",
+        CustomerBalanceDetailView.as_view(),
+        name="customer-balance-detail",
     ),
     # Customer Segments
     path(

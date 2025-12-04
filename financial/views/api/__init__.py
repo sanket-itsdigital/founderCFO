@@ -16,7 +16,10 @@ from financial.views.api.invoice import (
     InvoiceListCreateView,
     InvoiceRetrieveUpdateDestroyView,
 )
-from financial.views.api.customer_balance import CustomerBalanceSummaryView
+from financial.views.api.customer_balance import (
+    CustomerBalanceSummaryView,
+    CustomerBalanceDetailView,
+)
 from financial.views.api.customer_segments import CustomerSegmentsView
 from financial.views.api.ar_dashboard import ARDashboardView
 
@@ -36,6 +39,7 @@ __all__ = [
     "InvoiceListCreateView",
     "InvoiceRetrieveUpdateDestroyView",
     "CustomerBalanceSummaryView",
+    "CustomerBalanceDetailView",
     "CustomerSegmentsView",
     "ARDashboardView",
 ]
