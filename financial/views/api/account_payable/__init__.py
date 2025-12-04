@@ -12,6 +12,7 @@ from financial.views.api.account_payable.payment_scheduler import PaymentSchedul
 from financial.views.api.account_payable.record_payment import RecordPaymentView
 from financial.views.api.account_payable.cash_flow_projection import APCashFlowProjectionView
 from financial.views.api.account_payable.analytics import APAnalyticsView
+from financial.views.api.account_payable.ap_dashboard import APDashboardView
 
 __all__ = [
     "BillListCreateView",
@@ -23,6 +24,7 @@ __all__ = [
     "RecordPaymentView",
     "APCashFlowProjectionView",
     "APAnalyticsView",
+    "APDashboardView",
     "get_company_from_request",
 ]
 

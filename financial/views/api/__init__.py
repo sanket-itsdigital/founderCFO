@@ -18,6 +18,7 @@ from financial.views.api.account_payable import (
     RecordPaymentView,
     APCashFlowProjectionView,
     APAnalyticsView,
+    APDashboardView,
 )
 from financial.views.api.account_receivable.cash_flow import CashFlowProjectionView
 from financial.views.api.account_receivable.analytics import AnalyticsView
@@ -60,4 +61,5 @@ __all__ = [
     "RecordPaymentView",
     "APCashFlowProjectionView",
     "APAnalyticsView",
+    "APDashboardView",
 ]

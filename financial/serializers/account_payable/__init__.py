@@ -37,6 +37,14 @@ from financial.serializers.account_payable.analytics import (
     TopVendorSerializer,
     PaymentMethodItemSerializer,
 )
+from financial.serializers.account_payable.ap_dashboard import (
+    APDashboardSerializer,
+    APKPISerializer,
+    APHealthStatusSerializer,
+    AgeingDistributionSerializer,
+    KeyInsightSerializer,
+    AgeingBreakdownSerializer,
+)
 
 __all__ = [
     "BillSerializer",
@@ -62,5 +70,11 @@ __all__ = [
     "MonthlyTrendDataSerializer",
     "TopVendorSerializer",
     "PaymentMethodItemSerializer",
+    "APDashboardSerializer",
+    "APKPISerializer",
+    "APHealthStatusSerializer",
+    "AgeingDistributionSerializer",
+    "KeyInsightSerializer",
+    "AgeingBreakdownSerializer",
 ]
 
