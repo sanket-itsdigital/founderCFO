@@ -14,7 +14,7 @@ from accounts.models import Company
 from financial.models.account_receivable import Invoice
 from financial.models.reconcile import BankTransaction
 from financial.enums import InvoicesStatusChoices, InvoicesCategoryChoices
-from financial.serializers.analytics import (
+from financial.serializers.account_receivable.analytics import (
     InvoicedCollectedTrendSerializer,
     DSOTrendSerializer,
     OutstandingByCategorySerializer,
@@ -22,7 +22,7 @@ from financial.serializers.analytics import (
     CollectionsByPaymentMethodSerializer,
     MonthlyCollectionRateSerializer,
 )
-from financial.views.api.ar_aging import get_company_from_request
+from financial.views.api.account_receivable.ar_aging import get_company_from_request
 
 
 class AnalyticsView(APIView):

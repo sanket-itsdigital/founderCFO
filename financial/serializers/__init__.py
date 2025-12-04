@@ -1,13 +1,25 @@
-from financial.serializers.ar_aging import ARAgeingSummarySerializer
-from financial.serializers.collection_priority import CollectionPrioritySerializer
-from financial.serializers.cash_flow import (
+from financial.serializers.account_receivable import (
+    InvoiceSerializer,
+    InvoiceCreateSerializer,
+    ARAgeingSummarySerializer,
+    ARDashboardSerializer,
+    CollectionPrioritySerializer,
+    CustomerBalanceSerializer,
+    CustomerBalanceSummarySerializer,
+    CustomerBalanceDetailSerializer,
+    CustomerBalanceUpdateSerializer,
+    CustomerSegmentsSerializer,
+    SegmentSummarySerializer,
+    CustomerSegmentDetailSerializer,
+    SegmentDetailSerializer,
+)
+from financial.serializers.account_receivable.cash_flow import (
     CashFlowProjectionResponseSerializer,
     CashFlowProjectionSummarySerializer,
     CashFlowProjectionDataSerializer,
     CashFlowRiskAnalysisSerializer,
 )
-  
-from financial.serializers.analytics import (
+from financial.serializers.account_receivable.analytics import (
     InvoicedCollectedTrendSerializer,
     DSOTrendSerializer,
     OutstandingByCategorySerializer,
@@ -15,25 +27,11 @@ from financial.serializers.analytics import (
     CollectionsByPaymentMethodSerializer,
     MonthlyCollectionRateSerializer,
 )
-from financial.serializers.write_offs import (
+from financial.serializers.account_receivable.write_offs import (
     WriteOffCandidateSerializer,
     WriteOffSerializer,
 )
-from financial.serializers.audit_trail import AuditTrailSerializer
-from financial.serializers.invoice import InvoiceSerializer, InvoiceCreateSerializer
-from financial.serializers.customer_balance import (
-    CustomerBalanceSerializer,
-    CustomerBalanceSummarySerializer,
-    CustomerBalanceDetailSerializer,
-    CustomerBalanceUpdateSerializer,
-)
-from financial.serializers.customer_segments import (
-    CustomerSegmentsSerializer,
-    SegmentSummarySerializer,
-    CustomerSegmentDetailSerializer,
-    SegmentDetailSerializer,
-)
-from financial.serializers.ar_dashboard import ARDashboardSerializer
+from financial.serializers.account_receivable.audit_trail import AuditTrailSerializer
 
 __all__ = [
     "ARAgeingSummarySerializer",

@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from accounts.models import Company
 from financial.models.account_receivable import Invoice
 from financial.enums import InvoicesStatusChoices
-from financial.serializers.ar_aging import ARAgeingSummarySerializer
+from financial.serializers.account_receivable.ar_aging import ARAgeingSummarySerializer
 
 
 def get_company_from_request(request):
