@@ -4,6 +4,7 @@ from financial.models import (
     AuditTrail,
     BankTransaction,
     CashFlowProjection,
+    Credit,
     Dispute,
     DiscountProgram,
     DunningQueue,
@@ -11,9 +12,13 @@ from financial.models import (
     FactoringRequest,
     FactoringRequestInvoice,
     Invoice,
+    PaymentPlan,
+    PaymentPlanInstallment,
+    Vendor,
+    Bill,
     WriteOff,
 )
-from financial.models.customer import Balance_summary
+from financial.models.account_receivable.customer import Balance_summary
 
 
 @admin.register(Invoice)
@@ -250,3 +255,173 @@ class BalanceSummaryAdmin(admin.ModelAdmin):
         "updated_by",
         "credit_utilization_percentage",
     ]
+
+
+@admin.register(Vendor)
+class VendorAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "company",
+        "name",
+        "email",
+        "phone",
+        "contact_person",
+        "gstin",
+        "created_at",
+    ]
+    list_filter = ["created_at", "company"]
+    search_fields = ["name", "email", "phone", "gstin", "pan", "contact_person"]
+    readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by"]
+    fieldsets = (
+        ("Basic Information", {
+            "fields": ("company", "name", "contact_person", "email", "phone")
+        }),
+        ("Address", {
+            "fields": ("address",)
+        }),
+        ("Tax Information", {
+            "fields": ("gstin", "pan")
+        }),
+        ("Additional", {
+            "fields": ("payment_terms", "notes")
+        }),
+    )
+
+
+@admin.register(Bill)
+class BillAdmin(admin.ModelAdmin):
+    list_display = [
+        "company",
+        "bill_number",
+        "vendor",
+        "vendor_name",
+        "bill_date",
+        "due_date",
+        "amount",
+        "paid_amount",
+        "balance_amount",
+        "status",
+        "category",
+        "created_at",
+    ]
+    list_filter = ["status", "category", "bill_date", "due_date", "created_at"]
+    search_fields = ["bill_number", "vendor__name", "vendor_name", "category"]
+    readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by", "balance_amount"]
+    date_hierarchy = "bill_date"
+    fieldsets = (
+        ("Basic Information", {
+            "fields": ("company", "bill_number", "vendor", "vendor_name", "category")
+        }),
+        ("Dates", {
+            "fields": ("bill_date", "due_date")
+        }),
+        ("Amounts", {
+            "fields": ("amount", "paid_amount", "balance_amount")
+        }),
+        ("Status", {
+            "fields": ("status",)
+        }),
+        ("Additional", {
+            "fields": ("notes",)
+        }),
+    )
+
+
+@admin.register(Credit)
+class CreditAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "company",
+        "customer_name",
+        "credit_limit",
+        "payment_score",
+        "risk_level",
+        "avg_days_to_pay",
+        "created_at",
+    ]
+    list_filter = ["risk_level", "created_at", "company"]
+    search_fields = ["customer_name", "company__name"]
+    readonly_fields = [
+        "id",
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+        "current_balance",
+        "utilization_percentage",
+    ]
+    fieldsets = (
+        ("Basic Information", {
+            "fields": ("company", "customer_name")
+        }),
+        ("Credit Details", {
+            "fields": ("credit_limit", "payment_score", "risk_level", "avg_days_to_pay")
+        }),
+        ("Calculated Fields", {
+            "fields": ("current_balance", "utilization_percentage"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+@admin.register(PaymentPlan)
+class PaymentPlanAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "company",
+        "invoice",
+        "number_of_installments",
+        "total_amount",
+        "paid_amount",
+        "remaining_amount",
+        "status",
+        "start_date",
+        "created_at",
+    ]
+    list_filter = ["status", "payment_frequency", "start_date", "created_at"]
+    search_fields = [
+        "invoice__invoice_number",
+        "invoice__customer_name",
+        "company__name",
+    ]
+    readonly_fields = [
+        "id",
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+        "paid_amount",
+        "remaining_amount",
+        "progress_percentage",
+    ]
+    date_hierarchy = "start_date"
+
+
+@admin.register(PaymentPlanInstallment)
+class PaymentPlanInstallmentAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "payment_plan",
+        "installment_number",
+        "due_date",
+        "amount",
+        "status",
+        "paid_at",
+        "payment_reference",
+        "created_at",
+    ]
+    list_filter = ["status", "due_date", "paid_at", "created_at"]
+    search_fields = [
+        "payment_plan__invoice__invoice_number",
+        "payment_plan__invoice__customer_name",
+        "payment_reference",
+    ]
+    readonly_fields = [
+        "id",
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+        "is_overdue",
+    ]
+    date_hierarchy = "due_date"

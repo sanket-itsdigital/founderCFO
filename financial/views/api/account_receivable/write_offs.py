@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Company
-from financial.models.write_offs import WriteOff
+from financial.models.account_receivable.write_offs import WriteOff
 from financial.models.account_receivable import Invoice
 from financial.enums import InvoicesStatusChoices
 from financial.serializers.account_receivable.write_offs import WriteOffCandidateSerializer, WriteOffSerializer
@@ -245,7 +245,7 @@ class WriteOffSelectedView(APIView):
                 total_amount += balance
                 
                 # Log audit trail
-                from financial.models.audit_trail import AuditTrail
+                from financial.models.account_receivable.audit_trail import AuditTrail
                 AuditTrail.log_action(
                     action="write_off",
                     entity_type="invoice",

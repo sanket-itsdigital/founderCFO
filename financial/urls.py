@@ -8,10 +8,10 @@ from financial.views.api import (
     CustomerBalanceDetailView,
     CustomerSegmentsView,
     CollectionPriorityView,
-    
+    BillListCreateView,
+    BillRetrieveUpdateDestroyView,
+    APAgeingSummaryView,
     CashFlowProjectionView,
-    
-    
     AnalyticsView,
     WriteOffsSummaryView,
     WriteOffCandidatesListView,
@@ -77,5 +77,20 @@ urlpatterns = [
         CashFlowProjectionView.as_view(),
         name="cash-flow-projection",
     ),
-     
+    # Accounts Payable
+    path(
+        "payable/bills/",
+        BillListCreateView.as_view(),
+        name="bill-list-create",
+    ),
+    path(
+        "payable/bills/<uuid:id>/",
+        BillRetrieveUpdateDestroyView.as_view(),
+        name="bill-detail",
+    ),
+    path(
+        "payable/ap-ageing-summary/",
+        APAgeingSummaryView.as_view(),
+        name="ap-ageing-summary",
+    ),
 ]

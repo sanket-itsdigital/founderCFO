@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 
 from accounts.models import Company
 from financial.models.account_receivable import Invoice
-from financial.models.reconcile import BankTransaction
+from financial.models.account_receivable.reconcile import BankTransaction
 from financial.enums import InvoicesStatusChoices, InvoicesCategoryChoices
 from financial.serializers.account_receivable.analytics import (
     InvoicedCollectedTrendSerializer,

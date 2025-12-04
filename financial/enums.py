@@ -113,3 +113,10 @@ class InstallmentStatusChoices(TextChoices):
     PAID = "Paid", "Paid"
     OVERDUE = "Overdue", "Overdue"
     SKIPPED = "Skipped", "Skipped"
+
+class BillsStatusChoices(TextChoices):
+    PENDING = "Pending", "Pending"
+    PARTIAL = "Partial", "Partial"
+    PAID = "Paid", "Paid"
+    OVERDUE = "Overdue", "Overdue"
+    CANCELLED = "Cancelled", "Cancelled"
