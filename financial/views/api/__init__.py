@@ -12,6 +12,7 @@ from financial.views.api.account_payable import (
     BillListCreateView,
     BillRetrieveUpdateDestroyView,
     APAgeingSummaryView,
+    VendorBalanceSummaryView,
 )
 from financial.views.api.account_receivable.cash_flow import CashFlowProjectionView
 from financial.views.api.account_receivable.analytics import AnalyticsView
@@ -48,4 +49,5 @@ __all__ = [
     "BillListCreateView",
     "BillRetrieveUpdateDestroyView",
     "APAgeingSummaryView",
+    "VendorBalanceSummaryView",
 ]

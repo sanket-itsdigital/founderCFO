@@ -11,6 +11,7 @@ from financial.views.api import (
     BillListCreateView,
     BillRetrieveUpdateDestroyView,
     APAgeingSummaryView,
+    VendorBalanceSummaryView,
     CashFlowProjectionView,
     AnalyticsView,
     WriteOffsSummaryView,
@@ -92,5 +93,10 @@ urlpatterns = [
         "payable/ap-ageing-summary/",
         APAgeingSummaryView.as_view(),
         name="ap-ageing-summary",
+    ),
+    path(
+        "payable/vendors/balance-summary/",
+        VendorBalanceSummaryView.as_view(),
+        name="vendor-balance-summary",
     ),
 ]

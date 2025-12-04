@@ -7,6 +7,10 @@ from financial.serializers.account_payable.ap_aging import (
     APAgeingSummarySerializer,
     APAgeingBucketSerializer,
 )
+from financial.serializers.account_payable.vendor_balance import (
+    VendorBalanceSummarySerializer,
+    VendorBalanceVendorSerializer,
+)
 
 __all__ = [
     "BillSerializer",
@@ -14,5 +18,7 @@ __all__ = [
     "BillUpdateSerializer",
     "APAgeingSummarySerializer",
     "APAgeingBucketSerializer",
+    "VendorBalanceSummarySerializer",
+    "VendorBalanceVendorSerializer",
 ]
 
