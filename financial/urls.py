@@ -16,6 +16,7 @@ from financial.views.api import (
     PaymentSchedulerView,
     RecordPaymentView,
     APCashFlowProjectionView,
+    APAnalyticsView,
     CashFlowProjectionView,
     AnalyticsView,
     WriteOffsSummaryView,
@@ -122,5 +123,10 @@ urlpatterns = [
         "payable/cash-flow-projection/",
         APCashFlowProjectionView.as_view(),
         name="ap-cash-flow-projection",
+    ),
+    path(
+        "payable/analytics/",
+        APAnalyticsView.as_view(),
+        name="ap-analytics",
     ),
 ]

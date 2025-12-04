@@ -32,6 +32,11 @@ from financial.serializers.account_payable import (
     CashFlowProjectionSerializer,
     CashFlowProjectionSummarySerializer,
     CashFlowProjectionDataPointSerializer,
+    APAnalyticsSerializer,
+    SpendingByCategoryItemSerializer,
+    MonthlyTrendDataSerializer,
+    TopVendorSerializer,
+    PaymentMethodItemSerializer,
 )
 from financial.serializers.account_receivable.cash_flow import (
     CashFlowProjectionResponseSerializer,
@@ -99,4 +104,9 @@ __all__ = [
     "CashFlowProjectionSerializer",
     "CashFlowProjectionSummarySerializer",
     "CashFlowProjectionDataPointSerializer",
+    "APAnalyticsSerializer",
+    "SpendingByCategoryItemSerializer",
+    "MonthlyTrendDataSerializer",
+    "TopVendorSerializer",
+    "PaymentMethodItemSerializer",
 ]

@@ -30,6 +30,13 @@ from financial.serializers.account_payable.cash_flow_projection import (
     CashFlowProjectionSummarySerializer,
     CashFlowProjectionDataPointSerializer,
 )
+from financial.serializers.account_payable.analytics import (
+    APAnalyticsSerializer,
+    SpendingByCategoryItemSerializer,
+    MonthlyTrendDataSerializer,
+    TopVendorSerializer,
+    PaymentMethodItemSerializer,
+)
 
 __all__ = [
     "BillSerializer",
@@ -50,5 +57,10 @@ __all__ = [
     "CashFlowProjectionSerializer",
     "CashFlowProjectionSummarySerializer",
     "CashFlowProjectionDataPointSerializer",
+    "APAnalyticsSerializer",
+    "SpendingByCategoryItemSerializer",
+    "MonthlyTrendDataSerializer",
+    "TopVendorSerializer",
+    "PaymentMethodItemSerializer",
 ]
 
