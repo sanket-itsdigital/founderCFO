@@ -1,27 +1,37 @@
-from financial.views.api.ar_aging import ARAgeingSummaryView
-from financial.views.api.collection_priority import CollectionPriorityView
-from financial.views.api.cash_flow import CashFlowProjectionView
-from financial.views.api.analytics import AnalyticsView
-from financial.views.api.write_offs import (
+from financial.views.api.account_receivable import (
+    ARAgeingSummaryView,
+    ARDashboardView,
+    CollectionPriorityView,
+    InvoiceListCreateView,
+    InvoiceRetrieveUpdateDestroyView,
+    CustomerBalanceSummaryView,
+    CustomerBalanceDetailView,
+    CustomerSegmentsView,
+)
+from financial.views.api.account_payable import (
+    BillListCreateView,
+    BillRetrieveUpdateDestroyView,
+    APAgeingSummaryView,
+    VendorBalanceSummaryView,
+    PaymentPriorityQueueView,
+    PaymentSchedulerView,
+    RecordPaymentView,
+    APCashFlowProjectionView,
+    APAnalyticsView,
+    APDashboardView,
+)
+from financial.views.api.account_receivable.cash_flow import CashFlowProjectionView
+from financial.views.api.account_receivable.analytics import AnalyticsView
+from financial.views.api.account_receivable.write_offs import (
     WriteOffsSummaryView,
     WriteOffCandidatesListView,
     WriteOffListCreateView,
     WriteOffSelectedView,
 )
-from financial.views.api.audit_trail import (
+from financial.views.api.account_receivable.audit_trail import (
     AuditTrailSummaryView,
     AuditTrailListView,
 )
-from financial.views.api.invoice import (
-    InvoiceListCreateView,
-    InvoiceRetrieveUpdateDestroyView,
-)
-from financial.views.api.customer_balance import (
-    CustomerBalanceSummaryView,
-    CustomerBalanceDetailView,
-)
-from financial.views.api.customer_segments import CustomerSegmentsView
-from financial.views.api.ar_dashboard import ARDashboardView
 
 __all__ = [
     "ARAgeingSummaryView",
@@ -42,4 +52,14 @@ __all__ = [
     "CustomerBalanceDetailView",
     "CustomerSegmentsView",
     "ARDashboardView",
+    "BillListCreateView",
+    "BillRetrieveUpdateDestroyView",
+    "APAgeingSummaryView",
+    "VendorBalanceSummaryView",
+    "PaymentPriorityQueueView",
+    "PaymentSchedulerView",
+    "RecordPaymentView",
+    "APCashFlowProjectionView",
+    "APAnalyticsView",
+    "APDashboardView",
 ]

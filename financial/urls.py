@@ -8,10 +8,17 @@ from financial.views.api import (
     CustomerBalanceDetailView,
     CustomerSegmentsView,
     CollectionPriorityView,
-    
+    BillListCreateView,
+    BillRetrieveUpdateDestroyView,
+    APAgeingSummaryView,
+    VendorBalanceSummaryView,
+    PaymentPriorityQueueView,
+    PaymentSchedulerView,
+    RecordPaymentView,
+    APCashFlowProjectionView,
+    APAnalyticsView,
+    APDashboardView,
     CashFlowProjectionView,
-    
-    
     AnalyticsView,
     WriteOffsSummaryView,
     WriteOffCandidatesListView,
@@ -77,5 +84,55 @@ urlpatterns = [
         CashFlowProjectionView.as_view(),
         name="cash-flow-projection",
     ),
-     
+    # Accounts Payable
+    path(
+        "payable/bills/",
+        BillListCreateView.as_view(),
+        name="bill-list-create",
+    ),
+    path(
+        "payable/bills/<uuid:id>/",
+        BillRetrieveUpdateDestroyView.as_view(),
+        name="bill-detail",
+    ),
+    path(
+        "payable/ap-ageing-summary/",
+        APAgeingSummaryView.as_view(),
+        name="ap-ageing-summary",
+    ),
+    path(
+        "payable/vendors/balance-summary/",
+        VendorBalanceSummaryView.as_view(),
+        name="vendor-balance-summary",
+    ),
+    path(
+        "payable/payment-priority/",
+        PaymentPriorityQueueView.as_view(),
+        name="payment-priority-queue",
+    ),
+    path(
+        "payable/payment-scheduler/",
+        PaymentSchedulerView.as_view(),
+        name="payment-scheduler",
+    ),
+    path(
+        "payable/record-payment/",
+        RecordPaymentView.as_view(),
+        name="record-payment",
+    ),
+    path(
+        "payable/cash-flow-projection/",
+        APCashFlowProjectionView.as_view(),
+        name="ap-cash-flow-projection",
+    ),
+    path(
+        "payable/analytics/",
+        APAnalyticsView.as_view(),
+        name="ap-analytics",
+    ),
+    path(
+        "payable/dashboard/",
+        APDashboardView.as_view(),
+        name="ap-dashboard",
+    ),
 ]

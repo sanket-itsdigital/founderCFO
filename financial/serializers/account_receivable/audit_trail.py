@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from financial.models.audit_trail import AuditTrail
+from financial.models.account_receivable.audit_trail import AuditTrail
 
 
 class AuditTrailSerializer(serializers.ModelSerializer):

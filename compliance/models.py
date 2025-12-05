@@ -16,6 +16,7 @@ from compliance.enums import (
     PenaltyAmount,
 )
 from accounts.models import Company
+from financial.enums import PaymentRecordTypeChoices
 
 
 # Create your models here.
@@ -46,13 +47,16 @@ class ComplianceTaskMaster(BaseModel):
     completed_date = models.DateField(null=True, blank=True)
     reminder_days = models.IntegerField(default=0)
     penalty_amount = models.CharField(
+        
         null=True, blank=True, choices=PenaltyAmount.choices
     )
     payment_amount = models.DecimalField(
         max_digits=15, decimal_places=2, null=True, blank=True
     )
     payment_reference = models.CharField(max_length=255, null=True, blank=True)
-    payment_method = models.CharField(max_length=100, null=True, blank=True)
+    payment_method = models.CharField(
+        max_length=100, null=True, blank=True, choices=PaymentRecordTypeChoices.choices
+    )
     consequences = models.TextField(
         null=True,
         blank=True,

@@ -12,8 +12,8 @@ from rest_framework.views import APIView
 from accounts.models import Company
 from financial.models.account_receivable import Invoice
 from financial.enums import InvoicesStatusChoices
-from financial.serializers.ar_dashboard import ARDashboardSerializer
-from financial.views.api.ar_aging import get_company_from_request
+from financial.serializers.account_receivable.ar_dashboard import ARDashboardSerializer
+from financial.views.api.account_receivable.ar_aging import get_company_from_request
 
 
 class ARDashboardView(APIView):

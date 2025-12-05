@@ -5,8 +5,8 @@ from rest_framework.response import Response
 
 from accounts.models import Company
 from financial.models.account_receivable import Invoice
-from financial.serializers.invoice import InvoiceSerializer, InvoiceCreateSerializer
-from financial.views.api.ar_aging import get_company_from_request
+from financial.serializers.account_receivable.invoice import InvoiceSerializer, InvoiceCreateSerializer
+from financial.views.api.account_receivable.ar_aging import get_company_from_request
 
 
 class InvoiceListCreateView(generics.ListCreateAPIView):
@@ -69,7 +69,7 @@ class InvoiceListCreateView(generics.ListCreateAPIView):
         
         # Log audit trail if available
         try:
-            from financial.models.audit_trail import AuditTrail
+            from financial.models.account_receivable.audit_trail import AuditTrail
             AuditTrail.log_action(
                 action="create",
                 entity_type="invoice",
@@ -141,7 +141,7 @@ class InvoiceRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         
         # Log audit trail
         try:
-            from financial.models.audit_trail import AuditTrail
+            from financial.models.account_receivable.audit_trail import AuditTrail
             updated_instance = self.get_object()
             new_data = {
                 "invoice_number": updated_instance.invoice_number,
@@ -179,7 +179,7 @@ class InvoiceRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         
         # Log audit trail before deletion
         try:
-            from financial.models.audit_trail import AuditTrail
+            from financial.models.account_receivable.audit_trail import AuditTrail
             AuditTrail.log_action(
                 action="delete",
                 entity_type="invoice",

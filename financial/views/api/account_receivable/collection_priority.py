@@ -10,9 +10,10 @@ from rest_framework.views import APIView
 
 from accounts.models import Company
 from financial.models.account_receivable import Invoice
-from financial.models.credit import Credit
+from financial.models.account_receivable.credit import Credit
 from financial.enums import InvoicesStatusChoices, RiskLevelChoices
-from financial.serializers.collection_priority import CollectionPrioritySerializer
+
+from financial.serializers.account_receivable.collection_priority import CollectionPrioritySerializer
 
 
 def get_company_from_request(request):

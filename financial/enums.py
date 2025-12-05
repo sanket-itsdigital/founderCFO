@@ -113,3 +113,22 @@ class InstallmentStatusChoices(TextChoices):
     PAID = "Paid", "Paid"
     OVERDUE = "Overdue", "Overdue"
     SKIPPED = "Skipped", "Skipped"
+
+
+class BillsStatusChoices(TextChoices):
+    PENDING = "Pending", "Pending"
+    PARTIAL = "Partial", "Partial"
+    PAID = "Paid", "Paid"
+    OVERDUE = "Overdue", "Overdue"
+    CANCELLED = "Cancelled", "Cancelled"
+
+
+class PaymentRecordTypeChoices(TextChoices):
+    BANK_TRANSFER = "Bank Transfer", "Bank Transfer"
+    NEFT = "NEFT", "NEFT"
+    RTGS = "RTGS", "RTGS"
+    IMPS = "IMPS", "IMPS"
+    CHEQUE = "Cheque", "Cheque"
+    UPI = "UPI", "UPI"
+    CASH = "Cash", "Cash"
+    CREDIT_CARD = "Credit card", "Credit card"

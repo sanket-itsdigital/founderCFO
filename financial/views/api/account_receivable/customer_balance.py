@@ -10,14 +10,14 @@ from rest_framework.views import APIView
 
 from accounts.models import Company
 from financial.models.account_receivable import Invoice
-from financial.models.credit import Credit
+from financial.models.account_receivable.credit import Credit
 from financial.enums import InvoicesStatusChoices, RiskLevelChoices
-from financial.serializers.customer_balance import (
+from financial.serializers.account_receivable.customer_balance import (
     CustomerBalanceSummarySerializer,
     CustomerBalanceDetailSerializer,
     CustomerBalanceUpdateSerializer,
 )
-from financial.views.api.ar_aging import get_company_from_request
+from financial.views.api.account_receivable.ar_aging import get_company_from_request
 
 
 class CustomerBalanceSummaryView(APIView):

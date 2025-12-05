@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from financial.models.write_offs import WriteOff
+from financial.models.account_receivable.write_offs import WriteOff
 from financial.models.account_receivable import Invoice
 
 
