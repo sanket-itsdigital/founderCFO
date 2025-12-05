@@ -1,0 +1,138 @@
+from django.urls import path
+from financial.views.api import (
+    ARAgeingSummaryView,
+    ARDashboardView,
+    InvoiceListCreateView,
+    InvoiceRetrieveUpdateDestroyView,
+    CustomerBalanceSummaryView,
+    CustomerBalanceDetailView,
+    CustomerSegmentsView,
+    CollectionPriorityView,
+    BillListCreateView,
+    BillRetrieveUpdateDestroyView,
+    APAgeingSummaryView,
+    VendorBalanceSummaryView,
+    PaymentPriorityQueueView,
+    PaymentSchedulerView,
+    RecordPaymentView,
+    APCashFlowProjectionView,
+    APAnalyticsView,
+    APDashboardView,
+    CashFlowProjectionView,
+    AnalyticsView,
+    WriteOffsSummaryView,
+    WriteOffCandidatesListView,
+    WriteOffListCreateView,
+    WriteOffSelectedView,
+    AuditTrailSummaryView,
+    AuditTrailListView,
+)
+
+app_name = "financial"
+
+urlpatterns = [
+    # Invoices
+    path(
+        "invoices/",
+        InvoiceListCreateView.as_view(),
+        name="invoice-list-create",
+    ),
+    path(
+        "invoices/<uuid:id>/",
+        InvoiceRetrieveUpdateDestroyView.as_view(),
+        name="invoice-detail",
+    ),
+    # Customer Balance Summary
+    path(
+        "customers/balance-summary/",
+        CustomerBalanceSummaryView.as_view(),
+        name="customer-balance-summary",
+    ),
+    path(
+        "customers/balance-summary/<str:customer_name>/",
+        CustomerBalanceDetailView.as_view(),
+        name="customer-balance-detail",
+    ),
+    # Customer Segments
+    path(
+        "customers/segments/",
+        CustomerSegmentsView.as_view(),
+        name="customer-segments",
+    ),
+    # AR Ageing
+    path(
+        "ar-ageing-summary/",
+        ARAgeingSummaryView.as_view(),
+        name="ar-ageing-summary",
+    ),
+    # AR Dashboard
+    path(
+        "ar-dashboard/",
+        ARDashboardView.as_view(),
+        name="ar-dashboard",
+    ),
+    # Collection Priority
+    path(
+        "collection-priority/",
+        CollectionPriorityView.as_view(),
+        name="collection-priority",
+    ),
+     
+    # Cash Flow
+    path(
+        "cash-flow/projection/",
+        CashFlowProjectionView.as_view(),
+        name="cash-flow-projection",
+    ),
+    # Accounts Payable
+    path(
+        "payable/bills/",
+        BillListCreateView.as_view(),
+        name="bill-list-create",
+    ),
+    path(
+        "payable/bills/<uuid:id>/",
+        BillRetrieveUpdateDestroyView.as_view(),
+        name="bill-detail",
+    ),
+    path(
+        "payable/ap-ageing-summary/",
+        APAgeingSummaryView.as_view(),
+        name="ap-ageing-summary",
+    ),
+    path(
+        "payable/vendors/balance-summary/",
+        VendorBalanceSummaryView.as_view(),
+        name="vendor-balance-summary",
+    ),
+    path(
+        "payable/payment-priority/",
+        PaymentPriorityQueueView.as_view(),
+        name="payment-priority-queue",
+    ),
+    path(
+        "payable/payment-scheduler/",
+        PaymentSchedulerView.as_view(),
+        name="payment-scheduler",
+    ),
+    path(
+        "payable/record-payment/",
+        RecordPaymentView.as_view(),
+        name="record-payment",
+    ),
+    path(
+        "payable/cash-flow-projection/",
+        APCashFlowProjectionView.as_view(),
+        name="ap-cash-flow-projection",
+    ),
+    path(
+        "payable/analytics/",
+        APAnalyticsView.as_view(),
+        name="ap-analytics",
+    ),
+    path(
+        "payable/dashboard/",
+        APDashboardView.as_view(),
+        name="ap-dashboard",
+    ),
+]
