@@ -23,7 +23,7 @@ class CapTableEventsAdmin(admin.ModelAdmin):
     )
     list_filter = ("event_type", "company")
     search_fields = ("event_name", "description", "company__name")
-    ordering = ("-date",)
+    ordering = ("date",)
 
 
 @admin.register(Shareholder)

@@ -234,7 +234,7 @@ class CapitalizationTableListCreateView(CompanyScopedMixin, generics.ListCreateA
         event_id = self.request.query_params.get("event_id")
         if event_id:
             queryset = queryset.filter(event_id=event_id)
-        return queryset.order_by("-event__date", "-created_at")
+        return queryset.order_by("event__date", "created_at")
 
     def list(self, request, *args, **kwargs):
         """Override list to include ownership summary."""
@@ -365,7 +365,7 @@ class CapitalizationTableDetailView(
         return (
             CapitalizationTable.objects.filter(**filters)
             .select_related("event", "shareholder", "company")
-            .order_by("-event__date", "-created_at")
+            .order_by("event__date", "created_at")
         )
 
     def get_object(self):
@@ -521,7 +521,7 @@ class CapTableEventTransactionCreateView(CompanyScopedMixin, APIView):
             CapTableEvents.objects.filter(**self._company_filter())
             .select_related("company")
             .prefetch_related("documents", "transactions__shareholder")
-            .order_by("-date")
+            .order_by("date")
         )
 
     def get(self, request):

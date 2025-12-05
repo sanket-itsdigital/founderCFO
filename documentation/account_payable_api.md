@@ -944,3 +944,4 @@ Authorization: Bearer <token>
 6. Bill statuses: PENDING, PARTIAL, PAID, OVERDUE, CANCELLED
 7. Payment methods: Bank Transfer, NEFT, RTGS, IMPS, Cheque, UPI, Cash, Credit Card
 
+

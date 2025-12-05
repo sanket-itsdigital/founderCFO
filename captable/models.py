@@ -41,7 +41,150 @@ class CapTableEvents(BaseModel):
         db_table = "captable_events"
         verbose_name = "Cap Table Event"
         verbose_name_plural = "Cap Table Events"
-        ordering = ["-date"]
+        ordering = ["date"]
+
+    def clean(self):
+        """Validate that only one event of each type exists per company (except Founders' Equity and ESOP Grant).
+        Also validate that INCORPORATION events have at least 2 founders."""
+        super().clean()
+
+        # Event types that can only have one instance per company
+        SINGLE_INSTANCE_EVENTS = [
+            CapTableEventStatus.INCORPORATION,
+            CapTableEventStatus.SEED_ROUND,
+            CapTableEventStatus.SERIES_A,
+            CapTableEventStatus.SERIES_B,
+            CapTableEventStatus.SERIES_C,
+            CapTableEventStatus.SERIES_D,
+            CapTableEventStatus.SECONDARY_SALE,
+        ]
+
+        # Founders' Equity and ESOP Grant can have multiple instances
+        MULTIPLE_INSTANCE_EVENTS = [
+            CapTableEventStatus.FOUNDERS_EQUITY,
+            CapTableEventStatus.ESOP_GRANT,
+        ]
+
+        if not self.company_id:
+            return
+
+        # Define the sequential order of events - each event requires ALL previous events
+        EVENT_SEQUENCE = [
+            CapTableEventStatus.INCORPORATION,  # First event, no prerequisite
+            CapTableEventStatus.SEED_ROUND,  # Requires Incorporation
+            CapTableEventStatus.SERIES_A,  # Requires Incorporation, Seed Round
+            CapTableEventStatus.SERIES_B,  # Requires Incorporation, Seed Round, Series A
+            CapTableEventStatus.SERIES_C,  # Requires Incorporation, Seed Round, Series A, Series B
+            CapTableEventStatus.SERIES_D,  # Requires Incorporation, Seed Round, Series A, Series B, Series C
+        ]
+
+        # Validate sequential order - check if ALL previous events exist
+        if self.event_type in EVENT_SEQUENCE:
+            event_index = EVENT_SEQUENCE.index(self.event_type)
+
+            # If not the first event (Incorporation), check all previous events
+            if event_index > 0:
+                required_events = EVENT_SEQUENCE[:event_index]
+                missing_events = []
+
+                for required_event in required_events:
+                    event_exists = CapTableEvents.objects.filter(
+                        company=self.company, event_type=required_event
+                    ).exists()
+
+                    if not event_exists:
+                        event_display = dict(CapTableEventStatus.choices).get(
+                            required_event, required_event
+                        )
+                        missing_events.append(event_display)
+
+                if missing_events:
+                    current_event_display = self.get_event_type_display()
+                    missing_events_str = ", ".join(missing_events)
+                    sequence_str = " → ".join(
+                        [
+                            dict(CapTableEventStatus.choices).get(evt, evt)
+                            for evt in EVENT_SEQUENCE
+                        ]
+                    )
+
+                    raise ValidationError(
+                        {
+                            "event_type": f"To create a '{current_event_display}' event, "
+                            f"you must first create the following missing event(s): {missing_events_str}. "
+                            f"Please create all events in the correct sequence: {sequence_str}"
+                        }
+                    )
+
+        if self.event_type in SINGLE_INSTANCE_EVENTS:
+            # Check if another event of the same type exists for this company
+            existing_events = CapTableEvents.objects.filter(
+                company=self.company, event_type=self.event_type
+            )
+
+            # Exclude current instance if updating
+            if self.pk:
+                existing_events = existing_events.exclude(pk=self.pk)
+
+            if existing_events.exists():
+                raise ValidationError(
+                    {
+                        "event_type": f"An event of type '{self.get_event_type_display()}' already exists for this company. "
+                        f"Only one instance of this event type is allowed."
+                    }
+                )
+
+        # Validate that INCORPORATION events have at least 2 founders and all shareholders are founders
+        # Note: For new events (no pk), skip this validation as it's handled by serializers when transactions are created
+        # This validation only runs for existing events being updated
+        if self.event_type == CapTableEventStatus.INCORPORATION:
+            # Skip validation for new events (no primary key yet)
+            if not self.pk:
+                return
+
+            # For existing events, check transactions
+            all_transactions = self.transactions.select_related("shareholder").all()
+
+            # Skip validation if no transactions exist yet (event just created, transactions will be added)
+            if not all_transactions.exists():
+                return
+
+            # Check that all shareholders are founders
+            non_founder_transactions = [
+                tx
+                for tx in all_transactions
+                if tx.shareholder.investor_type != InvestorType.FOUNDER
+            ]
+
+            if non_founder_transactions:
+                non_founder_names = [
+                    tx.shareholder.name for tx in non_founder_transactions
+                ]
+                raise ValidationError(
+                    {
+                        "event_type": f"For INCORPORATION events, all shareholders must have investor_type='Founder'. "
+                        f"Found shareholders with other investor types: {', '.join(non_founder_names)}"
+                    }
+                )
+
+            founder_transactions = (
+                self.transactions.filter(
+                    shareholder__investor_type=InvestorType.FOUNDER
+                )
+                .values_list("shareholder_id", flat=True)
+                .distinct()
+            )
+
+            founder_count = len(founder_transactions)
+
+            if founder_count < 2:
+                raise ValidationError(
+                    {
+                        "event_type": f"An INCORPORATION event requires at least 2 founders. "
+                        f"Currently, this event has {founder_count} founder(s). "
+                        f"Please add transactions with at least 2 founders before saving."
+                    }
+                )
 
 
 class Shareholder(BaseModel):
@@ -111,7 +254,7 @@ class CapitalizationTable(BaseModel):
         db_table = "captable_capitalization_table"
         verbose_name = "Capitalization Table"
         verbose_name_plural = "Capitalization Tables"
-        ordering = ["-event__date"]
+        ordering = ["event__date"]
 
 
 class VestingSchedule(BaseModel):
@@ -289,6 +432,7 @@ class ESOPGrant(BaseModel):
 
 class ESOPPoolHistory(BaseModel):
     """Track ESOP pool changes over time."""
+
     company = models.ForeignKey(
         "accounts.Company",
         on_delete=models.CASCADE,
@@ -315,9 +459,7 @@ class ESOPPoolHistory(BaseModel):
     change_amount = models.IntegerField(
         help_text="Change in pool size (positive for increase, negative for decrease)"
     )
-    description = models.TextField(
-        blank=True, help_text="Description of the change"
-    )
+    description = models.TextField(blank=True, help_text="Description of the change")
     notes = models.TextField(
         blank=True, null=True, help_text="Additional notes about the change"
     )

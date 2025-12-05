@@ -5,7 +5,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from accounts.models import Company
-from captable.enums import InvestorType, ShareClassType
+from captable.enums import CapTableEventStatus, InvestorType, ShareClassType
 from captable.models import (
     CapTableEventDocument,
     CapTableEvents,
@@ -284,13 +284,48 @@ class CapitalizationTableSerializer(serializers.ModelSerializer):
         shareholder = self._get_shareholder(
             validated_data.pop("shareholder_id"), event.company
         )
-        return CapitalizationTable.objects.create(
+
+        # Validate INCORPORATION events: shareholder must be a founder
+        if event.event_type == CapTableEventStatus.INCORPORATION:
+            if shareholder.investor_type != InvestorType.FOUNDER:
+                raise serializers.ValidationError(
+                    {
+                        "shareholder_id": f"For INCORPORATION events, all shareholders must have investor_type='Founder'. "
+                        f"Shareholder '{shareholder.name}' has investor_type='{shareholder.investor_type}'."
+                    }
+                )
+
+        # Create the transaction
+        transaction = CapitalizationTable.objects.create(
             company=event.company,
             event=event,
             shareholder=shareholder,
             **validated_data,
             **kwargs,
         )
+
+        # Validate INCORPORATION event has at least 2 founders after creating transaction
+        if event.event_type == CapTableEventStatus.INCORPORATION:
+            founder_transactions = (
+                event.transactions.filter(
+                    shareholder__investor_type=InvestorType.FOUNDER
+                )
+                .values_list("shareholder_id", flat=True)
+                .distinct()
+            )
+
+            founder_count = len(founder_transactions)
+
+            if founder_count < 2:
+                raise serializers.ValidationError(
+                    {
+                        "event_id": f"An INCORPORATION event requires at least 2 founders. "
+                        f"Currently, this event has {founder_count} founder(s). "
+                        f"Please add transactions with at least 2 shareholders having investor_type='Founder'."
+                    }
+                )
+
+        return transaction
 
     def update(self, instance, validated_data, **kwargs):
         event_id = validated_data.pop("event_id", None)
@@ -302,6 +337,19 @@ class CapitalizationTableSerializer(serializers.ModelSerializer):
             instance.shareholder = self._get_shareholder(
                 shareholder_id, instance.company
             )
+
+        # Validate INCORPORATION events: shareholder must be a founder
+        event = instance.event
+        shareholder = instance.shareholder
+        if event.event_type == CapTableEventStatus.INCORPORATION:
+            if shareholder.investor_type != InvestorType.FOUNDER:
+                raise serializers.ValidationError(
+                    {
+                        "shareholder_id": f"For INCORPORATION events, all shareholders must have investor_type='Founder'. "
+                        f"Shareholder '{shareholder.name}' has investor_type='{shareholder.investor_type}'."
+                    }
+                )
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         for attr, value in kwargs.items():
@@ -390,6 +438,105 @@ class CapTableEventSerializer(
         self._company = self._get_company(value)
         return value
 
+    def validate(self, attrs):
+        """Validate event type uniqueness for single-instance events."""
+        event_type = attrs.get("event_type")
+        company = getattr(self, "_company", None) or attrs.get("company")
+
+        if not company:
+            # Try to get company from instance if updating
+            if self.instance:
+                company = self.instance.company
+            else:
+                company_id = attrs.get("company_id")
+                if company_id:
+                    company = self._get_company(company_id)
+
+        if event_type and company:
+            # Define the sequential order of events - each event requires ALL previous events
+            EVENT_SEQUENCE = [
+                CapTableEventStatus.INCORPORATION,  # First event, no prerequisite
+                CapTableEventStatus.SEED_ROUND,  # Requires Incorporation
+                CapTableEventStatus.SERIES_A,  # Requires Incorporation, Seed Round
+                CapTableEventStatus.SERIES_B,  # Requires Incorporation, Seed Round, Series A
+                CapTableEventStatus.SERIES_C,  # Requires Incorporation, Seed Round, Series A, Series B
+                CapTableEventStatus.SERIES_D,  # Requires Incorporation, Seed Round, Series A, Series B, Series C
+            ]
+
+            # Validate sequential order - check if ALL previous events exist
+            if event_type in EVENT_SEQUENCE:
+                event_index = EVENT_SEQUENCE.index(event_type)
+
+                # If not the first event (Incorporation), check all previous events
+                if event_index > 0:
+                    required_events = EVENT_SEQUENCE[:event_index]
+                    missing_events = []
+
+                    for required_event in required_events:
+                        event_exists = CapTableEvents.objects.filter(
+                            company=company, event_type=required_event
+                        ).exists()
+
+                        if not event_exists:
+                            event_display = dict(CapTableEventStatus.choices).get(
+                                required_event, required_event
+                            )
+                            missing_events.append(event_display)
+
+                    if missing_events:
+                        current_event_display = dict(CapTableEventStatus.choices).get(
+                            event_type, event_type
+                        )
+                        missing_events_str = ", ".join(missing_events)
+                        sequence_str = " → ".join(
+                            [
+                                dict(CapTableEventStatus.choices).get(evt, evt)
+                                for evt in EVENT_SEQUENCE
+                            ]
+                        )
+
+                        raise serializers.ValidationError(
+                            {
+                                "event_type": f"To create a '{current_event_display}' event, "
+                                f"you must first create the following missing event(s): {missing_events_str}. "
+                                f"Please create all events in the correct sequence: {sequence_str}"
+                            }
+                        )
+
+            # Event types that can only have one instance per company
+            SINGLE_INSTANCE_EVENTS = [
+                CapTableEventStatus.INCORPORATION,
+                CapTableEventStatus.SEED_ROUND,
+                CapTableEventStatus.SERIES_A,
+                CapTableEventStatus.SERIES_B,
+                CapTableEventStatus.SERIES_C,
+                CapTableEventStatus.SERIES_D,
+                CapTableEventStatus.SECONDARY_SALE,
+            ]
+
+            if event_type in SINGLE_INSTANCE_EVENTS:
+                existing_events = CapTableEvents.objects.filter(
+                    company=company, event_type=event_type
+                )
+
+                # Exclude current instance if updating
+                if self.instance:
+                    existing_events = existing_events.exclude(pk=self.instance.pk)
+
+                if existing_events.exists():
+                    event_display = dict(CapTableEventStatus.choices).get(
+                        event_type, event_type
+                    )
+                    raise serializers.ValidationError(
+                        {
+                            "event_type": f"An event of type '{event_display}' already exists for this company. "
+                            f"Only one instance of this event type is allowed. "
+                            f"Founders' Equity and ESOP Grant can have multiple instances."
+                        }
+                    )
+
+        return attrs
+
     def create(self, validated_data, **kwargs):
         company_id = validated_data.pop("company_id", None)
         company = getattr(self, "_company", None)
@@ -397,9 +544,30 @@ class CapTableEventSerializer(
             company = self._get_company(company_id)
         if not company:
             raise serializers.ValidationError({"company_id": "Company is required."})
-        return CapTableEvents.objects.create(
-            company=company, **validated_data, **kwargs
-        )
+
+        # Create instance and call clean() for validation
+        # Note: For INCORPORATION events, the model's clean() will skip founder validation
+        # for new events (no pk), as validation is handled by transaction serializer
+        instance = CapTableEvents(company=company, **validated_data, **kwargs)
+        instance.full_clean()
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """Update instance and call clean() for validation."""
+        company_id = validated_data.pop("company_id", None)
+        if company_id:
+            company = self._get_company(company_id)
+            validated_data["company"] = company
+
+        # Update instance attributes
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        # Call full_clean() for validation
+        instance.full_clean()
+        instance.save()
+        return instance
 
 
 class CapTableEventTransactionLineSerializer(serializers.Serializer):
@@ -459,6 +627,9 @@ class CapTableEventTransactionCreateSerializer(serializers.Serializer):
 
         shareholder_cache = {}
         enriched_transactions = []
+        founder_count = 0
+        founder_shareholder_ids = set()
+
         for index, tx in enumerate(attrs["transactions"]):
             shareholder_id = tx["shareholder_id"]
             shareholder = shareholder_cache.get(shareholder_id)
@@ -486,7 +657,34 @@ class CapTableEventTransactionCreateSerializer(serializers.Serializer):
                     }
                 )
 
+            # Validate INCORPORATION events: all shareholders must be founders
+            event_type = event_serializer.validated_data.get("event_type")
+            if event_type == CapTableEventStatus.INCORPORATION:
+                if shareholder.investor_type != InvestorType.FOUNDER:
+                    raise serializers.ValidationError(
+                        {
+                            "transactions": f"Line {index + 1}: For INCORPORATION events, all shareholders must have investor_type='Founder'. "
+                            f"Shareholder '{shareholder.name}' has investor_type='{shareholder.investor_type}'."
+                        }
+                    )
+                # Count unique founders
+                if shareholder_id not in founder_shareholder_ids:
+                    founder_shareholder_ids.add(shareholder_id)
+                    founder_count += 1
+
             enriched_transactions.append({**tx, "shareholder": shareholder})
+
+        # Validate that INCORPORATION events have at least 2 founders
+        event_type = event_serializer.validated_data.get("event_type")
+        if event_type == CapTableEventStatus.INCORPORATION:
+            if founder_count < 2:
+                raise serializers.ValidationError(
+                    {
+                        "transactions": f"An INCORPORATION event requires at least 2 founders. "
+                        f"Currently, {founder_count} founder(s) found in the transactions. "
+                        f"Please include at least 2 shareholders with investor_type='Founder'."
+                    }
+                )
 
         attrs["transactions"] = enriched_transactions
         return attrs
