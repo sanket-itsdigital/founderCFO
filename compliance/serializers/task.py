@@ -2,6 +2,20 @@ from rest_framework import serializers
 from compliance.models import ComplianceTaskMaster
 
 
+class ComplianceTaskDropdownSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for dropdown lists - only id and name."""
+
+    name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ComplianceTaskMaster
+        fields = ["id", "name"]
+
+    def get_name(self, obj):
+        """Return task name as combination of task_id and particulars for display."""
+        return f"{obj.act} - {obj.particulars}"
+
+
 class ComplianceTaskMasterSerializer(serializers.ModelSerializer):
     task_id = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
@@ -9,7 +23,9 @@ class ComplianceTaskMasterSerializer(serializers.ModelSerializer):
     reminder_days = serializers.IntegerField(read_only=True)
     days_until_due = serializers.IntegerField(read_only=True)
     is_overdue = serializers.BooleanField(read_only=True)
-    
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    updated_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = ComplianceTaskMaster
         fields = [
@@ -30,6 +46,8 @@ class ComplianceTaskMasterSerializer(serializers.ModelSerializer):
             "penalty_amount",
             "payment_amount",
             "payment_reference",
+            "payment_method",
+            "payment_period",
             "consequences",
             "notes",
             "evidence_url",
@@ -39,18 +57,23 @@ class ComplianceTaskMasterSerializer(serializers.ModelSerializer):
             "penalty",
             "late_fee",
             "interest_amount",
+            "is_admin_created",
+            "created_by",
+            "updated_by",
             "created_at",
             "updated_at",
         ]
         read_only_fields = [
-            "id", 
-            "task_id", 
+            "id",
+            "task_id",
             "status",
             "next_due_date",
             "reminder_days",
             "days_until_due",
             "is_overdue",
-            "created_at", 
-            "updated_at"
+            "is_admin_created",
+            "created_by",
+            "updated_by",
+            "created_at",
+            "updated_at",
         ]
-

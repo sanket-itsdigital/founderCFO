@@ -1,5 +1,6 @@
 from django.db.models import TextChoices
 
+
 class CapTableEventStatus(TextChoices):
     INCORPORATION = "Incorporation", "Incorporation"
     FOUNDERS_EQUITY = "Founders' Equity", "Founders' Equity"
@@ -11,14 +12,16 @@ class CapTableEventStatus(TextChoices):
     ESOP_GRANT = "ESOP Grant", "ESOP Grant"
     SECONDARY_SALE = "Secondary Sale", "Secondary Sale"
     OTHER = "Other", "Other"
-    
+
+
 class ShareClassType(TextChoices):
     COMMON = "Common", "Common"
     PREFERENCE = "Preference", "Preference"
     DEBENTURE = "Debenture", "Debenture"
     ADVISORY = "Advisory", "Advisory"
     ESOP = "ESOP", "ESOP"
-    
+
+
 class InvestorType(TextChoices):
     FOUNDER = "Founder", "Founder"
     ANGEL_INVESTOR = "Angel Investor", "Angel Investor"
@@ -27,3 +30,22 @@ class InvestorType(TextChoices):
     ADVISOR = "Advisor", "Advisor"
     EMPLOYEE = "Employee", "Employee"
     OTHER = "Other", "Other"
+
+
+class ESOPGrantType(TextChoices):
+    STOCK_OPTIONS = "Stock Options", "Stock Options"
+    RSU = "RSU", "RSU"
+    SAR = "SAR", "SAR"
+
+
+class ESOPGrantStatus(TextChoices):
+    ACTIVE = "Active", "Active"
+    CANCELLED = "Cancelled", "Cancelled"
+    EXERCISED = "Exercised", "Exercised"
+
+
+class VestingFrequency(TextChoices):
+    MONTHLY = "Monthly", "Monthly"
+    QUARTERLY = "Quarterly", "Quarterly"
+    SEMI_ANNUAL = "Semi-Annual", "Semi-Annual"
+    ANNUAL = "Annual", "Annual"

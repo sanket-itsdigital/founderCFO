@@ -9,9 +9,14 @@ from captable.views.api import (
     CapTableSummaryView,
     CapitalizationTableDetailView,
     CapitalizationTableListCreateView,
+    ESOPGrantDetailView,
+    ESOPGrantListCreateView,
     ShareHolderListView,
     ShareholderDetailView,
     ShareholderListCreateView,
+    VestingScheduleDetailView,
+    VestingScheduleDropdownListView,
+    VestingScheduleListCreateView,
 )
 
 app_name = "captable"
@@ -60,4 +65,29 @@ urlpatterns = [
     ),
     path("summary/", CapTableSummaryView.as_view(), name="summary"),
     path("shareholders-list/", ShareHolderListView.as_view(), name="shareholder-list"),
+    path(
+        "esop-grants/",
+        ESOPGrantListCreateView.as_view(),
+        name="esop-grants-list",
+    ),
+    path(
+        "esop-grants/<uuid:pk>/",
+        ESOPGrantDetailView.as_view(),
+        name="esop-grants-detail",
+    ),
+    path(
+        "vesting-schedules/",
+        VestingScheduleListCreateView.as_view(),
+        name="vesting-schedules-list",
+    ),
+    path(
+        "vesting-schedules/<uuid:pk>/",
+        VestingScheduleDetailView.as_view(),
+        name="vesting-schedules-detail",
+    ),
+    path(
+        "vesting-schedules/drop-down/",
+        VestingScheduleDropdownListView.as_view(),
+        name="vesting-schedules-dropdown",
+    ),
 ]

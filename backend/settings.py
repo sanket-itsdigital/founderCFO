@@ -144,9 +144,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
+# Static URL as originally configured; user manages static differently in production
 STATIC_URL = "static/"
 
+# Directory containing app/static for development
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+# (STATIC_ROOT intentionally omitted per user request)
 
 # Media uploads (for Data Room files)
 MEDIA_URL = "/media/"
@@ -162,6 +167,17 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
+    # Always render date/datetime fields as DD-MM-YYYY (or DD-MM-YYYY HH:MM:SS)
+    # while still accepting ISO inputs for compatibility.
+    "DATE_FORMAT": "%d-%m-%Y",
+    "DATETIME_FORMAT": "%d-%m-%Y %H:%M:%S",
+    "DATE_INPUT_FORMATS": ["%d-%m-%Y", "%Y-%m-%d", "iso-8601"],
+    "DATETIME_INPUT_FORMATS": [
+        "%d-%m-%Y %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "iso-8601",
+    ],
 }
 
 
@@ -171,7 +187,7 @@ SIMPLE_JWT = {
 }
 
 # CORS (dev-friendly; tighten for production)
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
 

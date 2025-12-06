@@ -1,0 +1,22 @@
+{% extends "admin/change_list.html" %} 
+{% load i18n %} 
+{% block object-tools-items %} 
+{{ block.super }} 
+{% if can_import_tasks %}
+<li>
+  <a href="{{ import_excel_url }}" class="button"
+    >{% trans "Import from Excel" %}</a
+  >
+</li>
+{% endif %}
+{% endblock %} 
+{% block content %} 
+{% if can_import_tasks and allowed_rows %}
+<div class="help">
+  <strong>{% trans "Excel import hint" %}:</strong>
+  {% blocktrans %}Only the "{{ sheet_name }}" sheet is processed and rows {{
+  allowed_rows|join:", " }} are imported.{% endblocktrans %}
+</div>
+{% endif %} 
+{{ block.super }} 
+{% endblock %}

@@ -4,7 +4,9 @@ from captable.models import (
     CapTableEventDocument,
     CapTableEvents,
     CapitalizationTable,
+    ESOPGrant,
     Shareholder,
+    VestingSchedule,
 )
 
 
@@ -51,3 +53,39 @@ class CapitalizationTableAdmin(admin.ModelAdmin):
     )
     list_filter = ("share_class_type", "company")
     search_fields = ("share_class_name", "shareholder__name", "company__name")
+
+
+@admin.register(VestingSchedule)
+class VestingScheduleAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "company",
+        "total_shares",
+        "start_date",
+        "vesting_frequency",
+        "cliff_period_months",
+        "total_vesting_period_months",
+        "single_trigger",
+        "double_trigger",
+    )
+    list_filter = ("vesting_frequency", "single_trigger", "double_trigger", "company")
+    search_fields = ("name", "company__name")
+    ordering = ("name",)
+
+
+@admin.register(ESOPGrant)
+class ESOPGrantAdmin(admin.ModelAdmin):
+    list_display = (
+        "employee_name",
+        "employee_email",
+        "company",
+        "grant_date",
+        "cliff_date",
+        "total_options",
+        "strike_price",
+        "grant_type",
+        "status",
+    )
+    list_filter = ("grant_type", "status", "company")
+    search_fields = ("employee_name", "employee_email", "company__name")
+    ordering = ("-grant_date",)

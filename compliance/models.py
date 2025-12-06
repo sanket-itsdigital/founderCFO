@@ -1,9 +1,21 @@
-from datetime import timedelta, date
+from datetime import datetime, timedelta, date
+from calendar import monthrange
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
 from backend.enums import ActNameChoices, ComplianceStatusChoices
 from backend.models import BaseModel
+from compliance.enums import (
+    CompanyType,
+    ConsequencesType,
+    Frequency,
+    InterestType,
+    ParticularsType,
+    PenaltyAmount,
+)
+from accounts.models import Company
 
 
 # Create your models here.
@@ -12,34 +24,67 @@ class ComplianceTaskMaster(BaseModel):
         max_length=255,
         choices=ActNameChoices.choices,
     )
-    particulars = models.TextField()
-    due_date = models.DateField()
-    frequency = models.CharField(max_length=100)
+    particulars = models.TextField(choices=ParticularsType.choices)
+    due_date = models.DateField(null=True, blank=True)
+
+    frequency = models.CharField(max_length=100, choices=Frequency.choices)
     severity = models.CharField(max_length=50)
     status = models.CharField(
         choices=ComplianceStatusChoices.choices,
         max_length=50,
         default=ComplianceStatusChoices.PENDING,
     )
-    company_type = models.CharField(max_length=100, null=True, blank=True)
+    company_type = models.CharField(
+        null=True,
+        blank=True,
+        choices=CompanyType.choices,
+        default=CompanyType.PRIVATE_LIMITED,
+    )
     assignee = models.CharField(max_length=255, null=True, blank=True)
     last_filed_date = models.DateField(null=True, blank=True)
     next_due_date = models.DateField(null=True, blank=True)
     completed_date = models.DateField(null=True, blank=True)
     reminder_days = models.IntegerField(default=0)
-    penalty_amount = models.CharField(max_length=100, null=True, blank=True)
-    payment_amount = models.CharField(max_length=100, null=True, blank=True)
+    penalty_amount = models.CharField(
+        null=True, blank=True, choices=PenaltyAmount.choices
+    )
+    payment_amount = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
     payment_reference = models.CharField(max_length=255, null=True, blank=True)
-    consequences = models.TextField(null=True, blank=True)
+    payment_method = models.CharField(max_length=100, null=True, blank=True)
+    consequences = models.TextField(
+        null=True,
+        blank=True,
+        choices=ConsequencesType.choices,
+    )
     notes = models.TextField(null=True, blank=True)
-    evidence_url = models.URLField(null=True, blank=True)
+    evidence_url = models.FileField(
+        null=True,
+        blank=True,
+        upload_to="evidence_docs/",
+        validators=[FileExtensionValidator(["pdf"])],
+    )
     days_until_due = models.IntegerField(null=True, blank=True)
     is_overdue = models.BooleanField(default=False)
-    interest_percentage = models.CharField(max_length=100, null=True, blank=True)
+    interest_percentage = models.CharField(
+        max_length=100, null=True, blank=True, choices=InterestType.choices
+    )
     penalty = models.CharField(max_length=100, null=True, blank=True)
     late_fee = models.CharField(max_length=100, null=True, blank=True)
     interest_amount = models.CharField(max_length=100, null=True, blank=True)
-    task_id = models.CharField(max_length=100, unique=True, editable=False)
+    task_id = models.CharField(max_length=100, unique=True)
+    is_admin_created = models.BooleanField(
+        default=False,
+        help_text="Mark true if created by superadmin; task is visible to all companies.",
+    )
+    payment_period = models.DateField(null=True, blank=True)
+    companies = models.ManyToManyField(
+        Company,
+        related_name="selected_compliance_tasks",
+        blank=True,
+        help_text="Companies that have selected this task. Only selected tasks are displayed for each company.",
+    )
 
     def calculate_days_until_due(self):
         """Calculate days until due date from today."""
@@ -50,14 +95,12 @@ class ComplianceTaskMaster(BaseModel):
         return delta
 
     def calculate_is_overdue(self):
-        """Check if task is overdue (due date passed and not completed)."""
+        """Check if task is overdue (due date passed and status not completed)."""
         if not self.due_date:
             return False
         today = timezone.now().date()
         is_past_due = self.due_date < today
-        # Check if completed_date is set (more reliable than checking status)
-        is_not_completed = not self.completed_date
-        return is_past_due and is_not_completed
+        return is_past_due and self.status != ComplianceStatusChoices.COMPLETED
 
     def calculate_status(self):
         """Automatically calculate status based on dates and completion."""
@@ -71,241 +114,201 @@ class ComplianceTaskMaster(BaseModel):
             if self.due_date < today:
                 return ComplianceStatusChoices.OVERDUE
 
-        # If due_date is today or in the future, check if it's within reminder days
-        # If within reminder period, mark as IN_PROGRESS (needs imminent attention)
+        # If due_date is today or in the future, mark as IN_PROGRESS, else default to PENDING
         if self.due_date:
             today = timezone.now().date()
-            days_until = (self.due_date - today).days
-            if 0 <= days_until <= self.reminder_days:
+            if self.due_date == today:
                 return ComplianceStatusChoices.IN_PROGRESS
 
-        # Default to PENDING
         return ComplianceStatusChoices.PENDING
 
+    def _add_months(self, base_date, months):
+        """Utility to shift a date by a number of months."""
+        month = base_date.month - 1 + months
+        year = base_date.year + month // 12
+        month = month % 12 + 1
+        day = min(base_date.day, monthrange(year, month)[1])
+        return date(year, month, day)
+
     def calculate_next_due_date(self):
-        """Calculate next due date based on frequency and last_filed_date or due_date."""
-        if not self.frequency:
+        """Calculate next due date using due_date and frequency."""
+        if not self.due_date or not self.frequency:
             return None
 
-        # Use last_filed_date if available, otherwise use due_date
-        base_date = self.last_filed_date if self.last_filed_date else self.due_date
-        if not base_date:
+        base_date = self.due_date
+        frequency_value = self.frequency
+
+        # Use string comparison since frequency is stored as string value
+        frequency_lower = str(frequency_value).lower()
+
+        # Check against actual Frequency enum values
+        if frequency_value == Frequency.MONTHLY:
+            return self._add_months(base_date, 1)
+        if frequency_value == Frequency.QUARTERLY:
+            return self._add_months(base_date, 3)
+        if frequency_value == Frequency.HALF_YEARLY:
+            return self._add_months(base_date, 6)
+        if frequency_value == Frequency.ANNUALLY:
+            return self._add_months(base_date, 12)
+
+        # Fallback to string matching for flexibility
+        if frequency_lower == "monthly" or "month" in frequency_lower:
+            return self._add_months(base_date, 1)
+        if frequency_lower == "quarterly" or "quarter" in frequency_lower:
+            return self._add_months(base_date, 3)
+        if frequency_lower in {
+            "half-yearly",
+            "half yearly",
+            "semi-annual",
+            "half yearly",
+        }:
+            return self._add_months(base_date, 6)
+        if frequency_lower in {"annually", "annual", "yearly"}:
+            return self._add_months(base_date, 12)
+
+        # Fall back to day-based frequency detection (e.g., "30 days")
+        try:
+            import re
+
+            numbers = re.findall(r"\d+", frequency_lower)
+            if numbers:
+                days = int(numbers[0])
+                return base_date + timedelta(days=days)
+        except (ValueError, IndexError):
             return None
 
-        frequency_lower = self.frequency.lower()
-
-        # Parse frequency (e.g., "Monthly", "Quarterly", "Annually", "30 days", etc.)
-        if "daily" in frequency_lower or frequency_lower == "daily":
-            return base_date + timedelta(days=1)
-        elif "weekly" in frequency_lower or frequency_lower == "weekly":
-            return base_date + timedelta(weeks=1)
-        elif "monthly" in frequency_lower or frequency_lower == "monthly":
-            # Add 1 month manually, handling edge cases
-            new_month = base_date.month + 1
-            new_year = base_date.year
-            if new_month > 12:
-                new_year += 1
-                new_month = 1
-            # Handle day overflow (e.g., Jan 31 -> Feb 28/29)
-            try:
-                return date(new_year, new_month, base_date.day)
-            except ValueError:
-                # If day doesn't exist in target month, use last day of month
-                from calendar import monthrange
-
-                last_day = monthrange(new_year, new_month)[1]
-                return date(new_year, new_month, last_day)
-        elif "quarterly" in frequency_lower or frequency_lower == "quarterly":
-            # Add 3 months manually
-            new_month = base_date.month + 3
-            new_year = base_date.year
-            if new_month > 12:
-                new_year += 1
-                new_month -= 12
-            # Handle day overflow
-            try:
-                return date(new_year, new_month, base_date.day)
-            except ValueError:
-                from calendar import monthrange
-
-                last_day = monthrange(new_year, new_month)[1]
-                return date(new_year, new_month, last_day)
-        elif (
-            "half-yearly" in frequency_lower
-            or "half yearly" in frequency_lower
-            or "semi-annual" in frequency_lower
-        ):
-            # Add 6 months manually
-            new_month = base_date.month + 6
-            new_year = base_date.year
-            if new_month > 12:
-                new_year += 1
-                new_month -= 12
-            # Handle day overflow
-            try:
-                return date(new_year, new_month, base_date.day)
-            except ValueError:
-                from calendar import monthrange
-
-                last_day = monthrange(new_year, new_month)[1]
-                return date(new_year, new_month, last_day)
-        elif (
-            "annually" in frequency_lower
-            or "annual" in frequency_lower
-            or "yearly" in frequency_lower
-        ):
-            # Add 1 year manually, handle leap year edge case (Feb 29)
-            try:
-                return date(base_date.year + 1, base_date.month, base_date.day)
-            except ValueError:
-                # Handle Feb 29 -> Feb 28 in non-leap year
-                from calendar import monthrange
-
-                last_day = monthrange(base_date.year + 1, base_date.month)[1]
-                return date(base_date.year + 1, base_date.month, last_day)
-        else:
-            # Try to extract number of days from frequency string
-            try:
-                # Look for patterns like "30 days", "90 days", etc.
-                import re
-
-                numbers = re.findall(r"\d+", frequency_lower)
-                if numbers:
-                    days = int(numbers[0])
-                    return base_date + timedelta(days=days)
-            except (ValueError, IndexError):
-                pass
-
-        # Default: if frequency is not recognized, return None
         return None
 
     def calculate_reminder_days(self):
-        """Calculate reminder days based on frequency or set a default."""
-        if self.reminder_days and self.reminder_days > 0:
-            return self.reminder_days
+        """Calculate reminder days as max(due_date - today, 0)."""
+        if not self.due_date:
+            return 0
+        today = timezone.now().date()
+        return max((self.due_date - today).days, 0)
 
-        # Default reminder days based on frequency
-        if not self.frequency:
-            return 7  # Default 7 days
+    DATE_INPUT_FORMAT = "%d-%m-%Y"
 
-        frequency_lower = self.frequency.lower()
-
-        if "daily" in frequency_lower:
-            return 0  # No reminder needed for daily tasks
-        elif "weekly" in frequency_lower:
-            return 1  # 1 day before (remind on day 6 of 7)
-        elif "monthly" in frequency_lower:
-            return 7  # 7 days before (1 week notice)
-        elif "quarterly" in frequency_lower:
-            return 14  # 14 days before (2 weeks notice)
-        elif "half-yearly" in frequency_lower or "half yearly" in frequency_lower:
-            return 30  # 30 days before (1 month notice)
-        elif (
-            "annually" in frequency_lower
-            or "annual" in frequency_lower
-            or "yearly" in frequency_lower
-        ):
-            return 60  # 60 days before (2 months notice for annual tasks)
-        else:
-            # Try to extract number of days from frequency string and calculate percentage
+    def _normalize_date_field(self, value, field_name):
+        """Ensure date fields accept strings in DD-MM-YYYY format."""
+        if value in (None, ""):
+            return None
+        if isinstance(value, date):
+            return value
+        if isinstance(value, str):
             try:
-                import re
+                return datetime.strptime(value, self.DATE_INPUT_FORMAT).date()
+            except ValueError as exc:
+                raise ValidationError(
+                    {field_name: "Use DD-MM-YYYY format (e.g., 25-11-2025)."}
+                ) from exc
+        raise ValidationError({field_name: "Provide a valid date value."})
 
-                numbers = re.findall(r"\d+", frequency_lower)
-                if numbers:
-                    days = int(numbers[0])
-                    # Calculate reminder as 10% of the period, minimum 1 day, maximum 60 days
-                    reminder = max(1, min(60, int(days * 0.1)))
-                    return reminder
-            except (ValueError, IndexError):
-                pass
+    def clean(self):
+        """Custom validation rules."""
+        date_fields = [
+            "due_date",
+            "last_filed_date",
+            "next_due_date",
+            "completed_date",
+            "payment_period",
+        ]
+        for field_name in date_fields:
+            value = getattr(self, field_name)
+            if value not in (None, ""):
+                setattr(self, field_name, self._normalize_date_field(value, field_name))
 
-            return 7  # Default 7 days for unrecognized frequencies
+        super().clean()
+        if self.completed_date and self.status != ComplianceStatusChoices.COMPLETED:
+            raise ValidationError(
+                {
+                    "completed_date": "Set status to COMPLETED before adding a completion date."
+                }
+            )
+        if self.completed_date:
+            today = timezone.now().date()
+            if self.completed_date > today:
+                raise ValidationError(
+                    {"completed_date": "Completion date cannot be in the future."}
+                )
+
+    def _generate_task_id(self):
+        """Auto-generate a task id using the act prefix."""
+        act_value = self.act or "GEN"
+        act_clean = (
+            act_value.replace("Act", "")
+            .replace("ACT", "")
+            .replace(",", "")
+            .replace("(", "")
+            .replace(")", "")
+            .strip()
+        )
+        words = act_clean.split()
+        if words:
+            if len(words[0]) >= 3:
+                act_prefix = words[0][:3].upper()
+            else:
+                act_prefix = "".join([w[0] for w in words[:3]])[:3].upper()
+        else:
+            act_prefix = act_value[:3].upper() if act_value else "GEN"
+
+        existing_tasks = ComplianceTaskMaster.objects.filter(
+            task_id__startswith=f"{act_prefix}-"
+        )
+
+        if existing_tasks.exists():
+            max_num = 0
+            for task in existing_tasks:
+                try:
+                    num_part = task.task_id.split("-")[1]
+                    num = int(num_part)
+                    if num > max_num:
+                        max_num = num
+                except (IndexError, ValueError):
+                    continue
+            next_num = max_num + 1
+        else:
+            next_num = 1
+
+        return f"{act_prefix}-{str(next_num).zfill(3)}"
 
     def save(self, *args, **kwargs):
+        original_task_id = None
+        if self.pk:
+            original_task_id = (
+                ComplianceTaskMaster.objects.filter(pk=self.pk)
+                .values_list("task_id", flat=True)
+                .first()
+            )
+
+        manual_task_id_allowed = bool(self.is_admin_created and self.task_id)
+        if not manual_task_id_allowed:
+            if original_task_id:
+                self.task_id = original_task_id
+            else:
+                self.task_id = None
+
         if not self.task_id:
-            # Get first 3 characters of act value (not label), uppercase
-            # Act is stored as the choice value (e.g., "Companies Act, 2013")
-            # Extract meaningful prefix - take first 3 letters, skipping common words
-            act_value = self.act
+            self.task_id = self._generate_task_id()
 
-            # Handle different act formats
-            # For "Companies Act, 2013" -> "COM"
-            # For "FEMA" -> "FEM"
-            # For "LLP Act 2008" -> "LLP"
-            # For "CGST ACT 2017" -> "CGS"
-            # For "Income Tax Act, 1961" -> "INC"
-            # For "ESI Act 1948" -> "ESI"
-            # For "EPF Act 1952" -> "EPF"
-            # For "SEBI (LODR)" -> "SEB"
-            # For "SEBI" -> "SEB"
-            # For "MSME Act" -> "MSM"
-
-            # Remove common words and get first 3 meaningful characters
-            act_clean = (
-                act_value.replace("Act", "")
-                .replace("ACT", "")
-                .replace(",", "")
-                .replace("(", "")
-                .replace(")", "")
-                .strip()
-            )
-            words = act_clean.split()
-            if words:
-                # Take first word, or combine first letters
-                if len(words[0]) >= 3:
-                    act_prefix = words[0][:3].upper()
-                else:
-                    # Combine first letters of first two words if needed
-                    act_prefix = "".join([w[0] for w in words[:3]])[:3].upper()
-            else:
-                act_prefix = act_value[:3].upper()
-
-            # Find the highest number for this act prefix
-            existing_tasks = ComplianceTaskMaster.objects.filter(
-                task_id__startswith=f"{act_prefix}-"
-            )
-
-            if existing_tasks.exists():
-                # Extract numbers from existing task_ids
-                max_num = 0
-                for task in existing_tasks:
-                    try:
-                        num_part = task.task_id.split("-")[1]
-                        num = int(num_part)
-                        if num > max_num:
-                            max_num = num
-                    except (IndexError, ValueError):
-                        continue
-                next_num = max_num + 1
-            else:
-                next_num = 1
-
-            self.task_id = f"{act_prefix}-{str(next_num).zfill(3)}"
-
-        # Automatically calculate fields
-        # Calculate reminder_days if not set
-        if not self.reminder_days or self.reminder_days == 0:
-            self.reminder_days = self.calculate_reminder_days()
-
-        # Calculate days_until_due
-        self.days_until_due = self.calculate_days_until_due()
-
-        # Calculate status automatically (unless explicitly set to COMPLETED with completed_date)
-        # Do this before is_overdue calculation
+        # If completed_date is set, automatically set status to COMPLETED before validation
+        # This ensures validation passes since clean() checks that status is COMPLETED when completed_date exists
         if self.completed_date:
             self.status = ComplianceStatusChoices.COMPLETED
-        else:
+
+        # Validate user-supplied data (e.g., completed_date vs status)
+        self.full_clean(validate_unique=False)
+
+        # Automatically calculate fields
+        self.reminder_days = self.calculate_reminder_days()
+        self.days_until_due = self.calculate_days_until_due()
+        calculated_next_due = self.calculate_next_due_date()
+        self.next_due_date = calculated_next_due
+
+        # If status wasn't set above (no completed_date), calculate it
+        if not self.completed_date:
             self.status = self.calculate_status()
 
-        # Calculate is_overdue (after status is set)
         self.is_overdue = self.calculate_is_overdue()
-
-        # Calculate next_due_date if not set or if last_filed_date changed
-        if not self.next_due_date or self.last_filed_date:
-            calculated_next_due = self.calculate_next_due_date()
-            if calculated_next_due:
-                self.next_due_date = calculated_next_due
 
         super().save(*args, **kwargs)
 
