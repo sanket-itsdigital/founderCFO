@@ -3,6 +3,10 @@ from sales.views.api.forecast import SalesForecastView
 from sales.views.api.forecast_deal_detail import ForecastDealDetailView
 from sales.views.api.forecast_by_rep import ForecastByRepView
 from sales.views.api.forecast_accuracy import ForecastAccuracyView
+from sales.views.api.team_performance import TeamPerformanceView
+from sales.views.api.revenue_by_product import RevenueByProductView
+from sales.views.api.team_summary import TeamSummaryView
+from sales.views.api.team_performance_combined import TeamPerformanceCombinedView
 
 __all__ = [
     "RevenueAnalyticsView",
@@ -10,5 +14,9 @@ __all__ = [
     "ForecastDealDetailView",
     "ForecastByRepView",
     "ForecastAccuracyView",
+    "TeamPerformanceView",
+    "RevenueByProductView",
+    "TeamSummaryView",
+    "TeamPerformanceCombinedView",
 ]
 
