@@ -7,8 +7,14 @@ from sales.views.api.team_performance import TeamPerformanceView
 from sales.views.api.revenue_by_product import RevenueByProductView
 from sales.views.api.team_summary import TeamSummaryView
 from sales.views.api.team_performance_combined import TeamPerformanceCombinedView
+from sales.views.api.sales_overview import SalesOverviewView
+from sales.views.api.pipeline_overview import PipelineOverviewView
+from sales.views.api.create_deal import CreateDealView
 
 __all__ = [
+    "SalesOverviewView",
+    "PipelineOverviewView",
+    "CreateDealView",
     "RevenueAnalyticsView",
     "SalesForecastView",
     "ForecastDealDetailView",

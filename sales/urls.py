@@ -9,10 +9,29 @@ from sales.views.api.team_performance import TeamPerformanceView
 from sales.views.api.revenue_by_product import RevenueByProductView
 from sales.views.api.team_summary import TeamSummaryView
 from sales.views.api.team_performance_combined import TeamPerformanceCombinedView
+from sales.views.api.sales_overview import SalesOverviewView
+from sales.views.api.pipeline_overview import PipelineOverviewView
+from sales.views.api.create_deal import CreateDealView
 
 app_name = "sales"
 
 urlpatterns = [
+    # Sales Overview API
+    path(
+        "overview/",
+        SalesOverviewView.as_view(),
+        name="sales-overview",
+    ),
+    path(
+        "overview/pipeline/",
+        PipelineOverviewView.as_view(),
+        name="pipeline-overview",
+    ),
+    path(
+        "overview/deals/create/",
+        CreateDealView.as_view(),
+        name="create-deal",
+    ),
     # Revenue Analytics API
     path(
         "revenue-analytics/",

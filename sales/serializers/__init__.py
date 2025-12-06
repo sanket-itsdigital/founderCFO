@@ -1,3 +1,6 @@
+from sales.serializers.sales_overview import SalesOverviewSerializer
+from sales.serializers.pipeline_overview import PipelineOverviewSerializer
+from sales.serializers.create_deal import CreateDealSerializer
 from sales.serializers.revenue_analytics import RevenueAnalyticsSerializer
 from sales.serializers.forecast import SalesForecastSerializer
 from sales.serializers.forecast_deal_detail import ForecastDealDetailResponseSerializer
@@ -9,6 +12,9 @@ from sales.serializers.team_summary import TeamSummaryCardsSerializer
 from sales.serializers.team_performance_combined import TeamPerformanceCombinedSerializer
 
 __all__ = [
+    "SalesOverviewSerializer",
+    "PipelineOverviewSerializer",
+    "CreateDealSerializer",
     "RevenueAnalyticsSerializer",
     "SalesForecastSerializer",
     "ForecastDealDetailResponseSerializer",
