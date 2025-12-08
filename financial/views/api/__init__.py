@@ -12,6 +12,7 @@ from financial.views.api.account_receivable import (
 from financial.views.api.account_payable import (
     BillListCreateView,
     BillRetrieveUpdateDestroyView,
+    BillImportView,
     APAgeingSummaryView,
     VendorBalanceSummaryView,
     PaymentPriorityQueueView,
@@ -56,6 +57,7 @@ __all__ = [
     "ARDashboardView",
     "BillListCreateView",
     "BillRetrieveUpdateDestroyView",
+    "BillImportView",
     "APAgeingSummaryView",
     "VendorBalanceSummaryView",
     "PaymentPriorityQueueView",

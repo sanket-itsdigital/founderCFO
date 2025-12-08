@@ -11,6 +11,7 @@ from financial.views.api import (
     CollectionPriorityView,
     BillListCreateView,
     BillRetrieveUpdateDestroyView,
+    BillImportView,
     APAgeingSummaryView,
     VendorBalanceSummaryView,
     PaymentPriorityQueueView,
@@ -99,6 +100,11 @@ urlpatterns = [
         "payable/bills/<uuid:id>/",
         BillRetrieveUpdateDestroyView.as_view(),
         name="bill-detail",
+    ),
+    path(
+        "payable/bills/import/",
+        BillImportView.as_view(),
+        name="bill-import",
     ),
     path(
         "payable/ap-ageing-summary/",
