@@ -4,6 +4,7 @@ from financial.views.api import (
     ARDashboardView,
     InvoiceListCreateView,
     InvoiceRetrieveUpdateDestroyView,
+    InvoiceImportView,
     CustomerBalanceSummaryView,
     CustomerBalanceDetailView,
     CustomerSegmentsView,
@@ -42,6 +43,11 @@ urlpatterns = [
         InvoiceRetrieveUpdateDestroyView.as_view(),
         name="invoice-detail",
     ),
+    path(
+        "invoices/import/",
+        InvoiceImportView.as_view(),
+        name="invoice-import",
+    ),
     # Customer Balance Summary
     path(
         "customers/balance-summary/",
@@ -77,7 +83,6 @@ urlpatterns = [
         CollectionPriorityView.as_view(),
         name="collection-priority",
     ),
-     
     # Cash Flow
     path(
         "cash-flow/projection/",
