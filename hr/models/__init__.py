@@ -6,6 +6,8 @@ from hr.models.recruitment import (
     RecruitmentStatusChoices,
     RecruitmentSourceChoices,
 )
+from hr.models.category import Category
+from hr.models.budget import Budget
 
 __all__ = [
     "Department",
@@ -14,4 +16,6 @@ __all__ = [
     "Recruitment",
     "RecruitmentStatusChoices",
     "RecruitmentSourceChoices",
+    "Category",
+    "Budget",
 ]

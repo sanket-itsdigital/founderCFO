@@ -11,6 +11,7 @@ from hr.views.api.headcount_breakdown import (
 )
 from hr.views.api.turnover import TurnoverView
 from hr.views.api.recruitment import RecruitmentView
+from hr.views.api.budget import BudgetView
 
 app_name = "hr"
 urlpatterns = [
@@ -59,5 +60,10 @@ urlpatterns = [
         "analytics/",
         AnalyticsView.as_view(),
         name="analytics",
+    ),
+    path(
+        "budget/",
+        BudgetView.as_view(),
+        name="budget",
     ),
 ]
