@@ -10,6 +10,7 @@ from hr.views.api.headcount_breakdown import (
     HeadcountEmployeesView,
 )
 from hr.views.api.turnover import TurnoverView
+from hr.views.api.recruitment import RecruitmentView
 
 app_name = "hr"
 urlpatterns = [
@@ -43,6 +44,11 @@ urlpatterns = [
         "turnover/",
         TurnoverView.as_view(),
         name="turnover",
+    ),
+    path(
+        "recruitment/",
+        RecruitmentView.as_view(),
+        name="recruitment",
     ),
     path(
         "compensation/overview/",

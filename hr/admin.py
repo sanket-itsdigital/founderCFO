@@ -1,7 +1,12 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from hr.models import Department, Headcount, Role
+from hr.models import (
+    Department,
+    Headcount,
+    Role,
+    Recruitment,
+)
 
 
 @admin.register(Department)
@@ -168,3 +173,108 @@ class HeadcountAdmin(admin.ModelAdmin):
 
     salary_display.short_description = "Annual Salary"
     salary_display.admin_order_field = "salary_annual"
+
+
+@admin.register(Recruitment)
+class RecruitmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "job_title",
+        "department",
+        "company",
+        "status",
+        "positions_required",
+        "applications_received",
+        "offers_accepted",
+        "source",
+        "posting_date",
+        "actual_close_date",
+    )
+    search_fields = (
+        "job_title",
+        "company__name",
+        "department__name",
+        "source",
+    )
+    list_filter = (
+        "status",
+        "source",
+        "company",
+        "department",
+        "posting_date",
+    )
+    ordering = ("-posting_date",)
+    readonly_fields = (
+        "id",
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+        "time_to_hire_days",
+        "cost_per_hire",
+        "conversion_rate",
+    )
+
+    fieldsets = (
+        (
+            "Basic Information",
+            {
+                "fields": (
+                    "company",
+                    "job_title",
+                    "department",
+                    "status",
+                    "source",
+                )
+            },
+        ),
+        (
+            "Position Details",
+            {
+                "fields": (
+                    "positions_required",
+                    "posting_date",
+                    "target_close_date",
+                    "actual_close_date",
+                    "salary_range_min",
+                    "salary_range_max",
+                )
+            },
+        ),
+        (
+            "Recruitment Metrics",
+            {
+                "fields": (
+                    "applications_received",
+                    "interviews_conducted",
+                    "offers_made",
+                    "offers_accepted",
+                    "cost_spent",
+                )
+            },
+        ),
+        (
+            "Calculated Metrics",
+            {
+                "fields": (
+                    "time_to_hire_days",
+                    "cost_per_hire",
+                    "conversion_rate",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Metadata",
+            {
+                "fields": (
+                    "id",
+                    "created_at",
+                    "updated_at",
+                    "created_by",
+                    "updated_by",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
