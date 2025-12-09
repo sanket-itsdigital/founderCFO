@@ -12,6 +12,7 @@ from sales.views.api.team_performance_combined import TeamPerformanceCombinedVie
 from sales.views.api.sales_overview import SalesOverviewView
 from sales.views.api.pipeline_overview import PipelineOverviewView
 from sales.views.api.create_deal import CreateDealView
+from sales.views.api.import_sales import SalesImportView
 
 app_name = "sales"
 
@@ -31,6 +32,11 @@ urlpatterns = [
         "overview/deals/create/",
         CreateDealView.as_view(),
         name="create-deal",
+    ),
+    path(
+        "sales/import/",
+        SalesImportView.as_view(),
+        name="sales-import",
     ),
     # Revenue Analytics API
     path(

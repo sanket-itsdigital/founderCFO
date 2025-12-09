@@ -10,11 +10,13 @@ from sales.views.api.team_performance_combined import TeamPerformanceCombinedVie
 from sales.views.api.sales_overview import SalesOverviewView
 from sales.views.api.pipeline_overview import PipelineOverviewView
 from sales.views.api.create_deal import CreateDealView
+from sales.views.api.import_sales import SalesImportView
 
 __all__ = [
     "SalesOverviewView",
     "PipelineOverviewView",
     "CreateDealView",
+    "SalesImportView",
     "RevenueAnalyticsView",
     "SalesForecastView",
     "ForecastDealDetailView",
@@ -25,4 +27,3 @@ __all__ = [
     "TeamSummaryView",
     "TeamPerformanceCombinedView",
 ]
-
