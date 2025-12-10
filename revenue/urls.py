@@ -26,6 +26,7 @@ from revenue.views.api.analytics import (
     GeographicOverviewView,
     GeographicDetailsView,
     GSTOverviewView,
+    RevenueDashboardView,
 )
 
 app_name = "revenue"
@@ -162,5 +163,11 @@ urlpatterns = [
         "analytics/gst/overview/",
         GSTOverviewView.as_view(),
         name="gst-overview",
+    ),
+    # Dashboard Section
+    path(
+        "dashboard/",
+        RevenueDashboardView.as_view(),
+        name="revenue-dashboard",
     ),
 ]

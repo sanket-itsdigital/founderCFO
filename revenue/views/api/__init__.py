@@ -24,6 +24,7 @@ from revenue.views.api.analytics import (
     GeographicOverviewView,
     GeographicDetailsView,
     GSTOverviewView,
+    RevenueDashboardView,
 )
 
 __all__ = [
@@ -50,4 +51,5 @@ __all__ = [
     "GeographicOverviewView",
     "GeographicDetailsView",
     "GSTOverviewView",
+    "RevenueDashboardView",
 ]

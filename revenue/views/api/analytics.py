@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 
 from revenue.models.invoice import Invoice
 from sales.views.api.utils import get_company_from_request
+from financial.enums import InvoicesStatusChoices
 
 
 class TrendsYearOverYearView(APIView):
@@ -1767,6 +1768,329 @@ class GSTOverviewView(APIView):
                         "total_gst": float(hsn_total_gst),
                         "total_gst_display": self._format_amount(hsn_total_gst),
                     },
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class RevenueDashboardView(APIView):
+    """Revenue Dashboard - Unified API for all dashboard metrics"""
+
+    permission_classes = [IsAuthenticated]
+
+    def _in_lakhs(self, amount: Decimal) -> str:
+        """Convert amount to lakhs format (₹XX.XXL)"""
+        if amount == 0:
+            return "₹0.00L"
+        lakhs = amount / Decimal("100000")
+        return f"₹{lakhs.quantize(Decimal('0.01'))}L"
+
+    def _in_thousands(self, amount: Decimal) -> str:
+        """Convert amount to thousands format (₹XX.XXK)"""
+        if amount == 0:
+            return "₹0.00K"
+        thousands = amount / Decimal("1000")
+        return f"₹{thousands.quantize(Decimal('0.01'))}K"
+
+    def _format_amount(self, amount: Decimal) -> str:
+        """Format amount as K or L based on value"""
+        if amount >= Decimal("100000"):
+            return self._in_lakhs(amount)
+        else:
+            return self._in_thousands(amount)
+
+    def _calculate_dso(self, total_receivables, total_invoiced_last_90_days):
+        """Calculate Days Sales Outstanding (DSO)"""
+        if total_invoiced_last_90_days == 0:
+            return 0
+        # DSO = (Total Receivables / Total Sales) * Number of Days
+        # Using 90 days as the period
+        dso = (total_receivables / total_invoiced_last_90_days) * 90
+        return int(dso)
+
+    def get(self, request):
+        """Get comprehensive Revenue Dashboard data"""
+        company = get_company_from_request(request)
+        if not company:
+            return Response(
+                {"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        today = timezone.now().date()
+        current_month_start = today.replace(day=1)
+        previous_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
+        previous_month_end = current_month_start - timedelta(days=1)
+        last_90_days_start = today - timedelta(days=90)
+
+        base_qs = Invoice.objects.filter(company=company).exclude(
+            status=InvoicesStatusChoices.CANCELLED
+        )
+
+        # ========== KPIs ==========
+        # Total Revenue
+        total_revenue = base_qs.aggregate(
+            total=Coalesce(Sum("total_amount"), Decimal("0.00"))
+        )["total"] or Decimal("0.00")
+        total_invoices = base_qs.count()
+
+        # This Month Revenue
+        this_month_revenue = base_qs.filter(
+            invoice_date__gte=current_month_start
+        ).aggregate(total=Coalesce(Sum("total_amount"), Decimal("0.00")))[
+            "total"
+        ] or Decimal(
+            "0.00"
+        )
+
+        # Previous Month Revenue
+        previous_month_revenue = base_qs.filter(
+            invoice_date__gte=previous_month_start, invoice_date__lte=previous_month_end
+        ).aggregate(total=Coalesce(Sum("total_amount"), Decimal("0.00")))[
+            "total"
+        ] or Decimal(
+            "0.00"
+        )
+
+        # MoM Growth
+        mom_growth = (
+            (
+                (this_month_revenue - previous_month_revenue)
+                / previous_month_revenue
+                * 100
+            )
+            if previous_month_revenue > 0
+            else Decimal("0.00")
+        )
+
+        # Avg Invoice
+        avg_invoice = (
+            total_revenue / Decimal(str(total_invoices))
+            if total_invoices > 0
+            else Decimal("0.00")
+        )
+
+        # Deal-Linked Revenue (invoices with project_id or project_name)
+        deal_linked_invoices = base_qs.exclude(
+            Q(project_id__isnull=True) | Q(project_id="")
+        ).exclude(Q(project_name__isnull=True) | Q(project_name=""))
+        deal_linked_count = deal_linked_invoices.count()
+        deal_linked_revenue = deal_linked_invoices.aggregate(
+            total=Coalesce(Sum("total_amount"), Decimal("0.00"))
+        )["total"] or Decimal("0.00")
+
+        # Direct Revenue (not deal-linked)
+        direct_revenue = total_revenue - deal_linked_revenue
+
+        # Deal Conversion Rate
+        deal_conversion_rate = (
+            (deal_linked_count / total_invoices * 100)
+            if total_invoices > 0
+            else Decimal("0.00")
+        )
+
+        # Total Customers
+        total_customers = base_qs.values("customer_name").distinct().count()
+
+        # GST Collected
+        total_gst = base_qs.aggregate(
+            cgst=Coalesce(Sum("cgst_amount"), Decimal("0.00")),
+            sgst=Coalesce(Sum("sgst_amount"), Decimal("0.00")),
+            igst=Coalesce(Sum("igst_amount"), Decimal("0.00")),
+        )
+        gst_collected = (
+            (total_gst["cgst"] or Decimal("0.00"))
+            + (total_gst["sgst"] or Decimal("0.00"))
+            + (total_gst["igst"] or Decimal("0.00"))
+        )
+
+        # ========== Revenue by Product/Service ==========
+        product_revenue = (
+            base_qs.values("product_name")
+            .annotate(
+                revenue=Coalesce(Sum("total_amount"), Decimal("0.00")),
+            )
+            .order_by("-revenue")[:10]
+        )
+
+        product_data = []
+        for product in product_revenue:
+            share = (
+                (product["revenue"] / total_revenue * 100)
+                if total_revenue > 0
+                else Decimal("0.00")
+            )
+            product_data.append(
+                {
+                    "product_name": product["product_name"],
+                    "revenue": float(product["revenue"]),
+                    "revenue_display": self._format_amount(product["revenue"]),
+                    "share": float(share),
+                    "share_display": f"{share:.1f}%",
+                }
+            )
+
+        # ========== Monthly Revenue Trend (Last 12 months) ==========
+        monthly_trend = []
+        for i in range(11, -1, -1):  # Last 12 months
+            month_date = today.replace(day=1) - timedelta(days=30 * i)
+            month_start = month_date.replace(day=1)
+
+            last_day = monthrange(month_start.year, month_start.month)[1]
+            month_end = month_start.replace(day=last_day)
+
+            month_revenue = base_qs.filter(
+                invoice_date__gte=month_start, invoice_date__lte=month_end
+            ).aggregate(total=Coalesce(Sum("total_amount"), Decimal("0.00")))[
+                "total"
+            ] or Decimal(
+                "0.00"
+            )
+
+            monthly_trend.append(
+                {
+                    "month": month_start.strftime("%b %y"),
+                    "month_key": month_start.strftime("%Y-%m"),
+                    "revenue": float(month_revenue),
+                    "revenue_display": self._format_amount(month_revenue),
+                }
+            )
+
+        # ========== AR Health ==========
+        # Outstanding AR (invoices not paid or cancelled)
+        outstanding_invoices = base_qs.exclude(status=InvoicesStatusChoices.PAID)
+        outstanding_ar = outstanding_invoices.aggregate(
+            total=Coalesce(Sum("total_amount"), Decimal("0.00"))
+        )["total"] or Decimal("0.00")
+
+        # Overdue AR (invoices past due date and not paid)
+        overdue_invoices = outstanding_invoices.filter(due_date__lt=today)
+        overdue_ar = overdue_invoices.aggregate(
+            total=Coalesce(Sum("total_amount"), Decimal("0.00"))
+        )["total"] or Decimal("0.00")
+
+        # DSO Calculation
+        invoiced_last_90_days = base_qs.filter(
+            invoice_date__gte=last_90_days_start
+        ).aggregate(total=Coalesce(Sum("total_amount"), Decimal("0.00")))[
+            "total"
+        ] or Decimal(
+            "0.00"
+        )
+        dso = self._calculate_dso(outstanding_ar, invoiced_last_90_days)
+
+        # ========== Customer Concentration ==========
+        top_customers = (
+            base_qs.values("customer_name")
+            .annotate(
+                revenue=Coalesce(Sum("total_amount"), Decimal("0.00")),
+            )
+            .order_by("-revenue")[:5]
+        )
+
+        top_5_revenue = sum([c["revenue"] for c in top_customers])
+        top_5_concentration = (
+            (top_5_revenue / total_revenue * 100)
+            if total_revenue > 0
+            else Decimal("0.00")
+        )
+
+        # Risk Level Assessment
+        if top_5_concentration >= 60:
+            risk_level = "High"
+            risk_message = "High concentration risk - diversify customer base"
+        elif top_5_concentration >= 40:
+            risk_level = "Medium"
+            risk_message = "Monitor closely"
+        else:
+            risk_level = "Low"
+            risk_message = "Well diversified"
+
+        customer_concentration = []
+        for customer in top_customers:
+            share = (
+                (customer["revenue"] / total_revenue * 100)
+                if total_revenue > 0
+                else Decimal("0.00")
+            )
+            customer_concentration.append(
+                {
+                    "customer_name": customer["customer_name"],
+                    "revenue": float(customer["revenue"]),
+                    "revenue_display": self._format_amount(customer["revenue"]),
+                    "share": float(share),
+                    "share_display": f"{share:.1f}%",
+                }
+            )
+
+        return Response(
+            {
+                "kpis": {
+                    "total_revenue": {
+                        "value": float(total_revenue),
+                        "value_display": self._format_amount(total_revenue),
+                        "invoices_count": total_invoices,
+                        "description": f"{total_invoices} invoices",
+                    },
+                    "this_month_revenue": {
+                        "value": float(this_month_revenue),
+                        "value_display": self._format_amount(this_month_revenue),
+                        "mom_growth": float(mom_growth),
+                        "mom_growth_display": f"{mom_growth:+.1f}% MoM",
+                    },
+                    "avg_invoice": {
+                        "value": float(avg_invoice),
+                        "value_display": self._format_amount(avg_invoice),
+                        "description": "per invoice",
+                    },
+                    "deal_linked": {
+                        "value": float(deal_linked_revenue),
+                        "value_display": self._format_amount(deal_linked_revenue),
+                        "invoices_count": deal_linked_count,
+                        "description": f"{deal_linked_count} invoices",
+                    },
+                    "customers": {
+                        "value": total_customers,
+                        "description": "unique customers",
+                    },
+                    "gst_collected": {
+                        "value": float(gst_collected),
+                        "value_display": self._format_amount(gst_collected),
+                        "description": "Total GST",
+                    },
+                },
+                "revenue_by_product": product_data,
+                "monthly_revenue_trend": monthly_trend,
+                "ar_health": {
+                    "outstanding": float(outstanding_ar),
+                    "outstanding_display": self._format_amount(outstanding_ar),
+                    "dso": dso,
+                    "dso_display": f"{dso} days",
+                    "overdue": float(overdue_ar),
+                    "overdue_display": self._format_amount(overdue_ar),
+                },
+                "customer_concentration": {
+                    "top_5_concentration": float(top_5_concentration),
+                    "top_5_concentration_display": f"{top_5_concentration:.1f}%",
+                    "risk_level": risk_level,
+                    "risk_message": risk_message,
+                    "top_customers": customer_concentration,
+                },
+                "sales_pipeline": {
+                    "deal_linked_revenue": {
+                        "value": float(deal_linked_revenue),
+                        "value_display": self._format_amount(deal_linked_revenue),
+                        "invoices_count": deal_linked_count,
+                        "description": f"{deal_linked_count} invoices",
+                    },
+                    "direct_revenue": {
+                        "value": float(direct_revenue),
+                        "value_display": self._format_amount(direct_revenue),
+                        "description": "No deal link",
+                    },
+                    "deal_conversion_rate": float(deal_conversion_rate),
+                    "deal_conversion_rate_display": f"{deal_conversion_rate:.1f}%",
+                    "conversion_description": f"{deal_linked_count} of {total_invoices} invoices linked to deals",
                 },
             },
             status=status.HTTP_200_OK,
