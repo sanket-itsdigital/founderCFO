@@ -112,6 +112,15 @@ class ComplianceTaskListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        # Save the task instance
+        task = serializer.save(
+            created_by=self.request.user, updated_by=self.request.user
+        )
+
+        # Get company from request and add it to the task's companies
+        company = get_company_from_request(self.request)
+        if company:
+            task.companies.add(company)
 
 
 class ComplianceTaskRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
