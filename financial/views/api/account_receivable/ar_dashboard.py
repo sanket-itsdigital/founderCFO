@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Company
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 from financial.enums import InvoicesStatusChoices
 from financial.serializers.account_receivable.ar_dashboard import ARDashboardSerializer
 from financial.views.api.account_receivable.ar_aging import get_company_from_request
@@ -65,13 +65,13 @@ class ARDashboardView(APIView):
         """Calculate average days delinquent for overdue invoices"""
         if not overdue_invoices:
             return 0
-        
+
         today = timezone.now().date()
         total_days = 0
         for invoice in overdue_invoices:
             days_overdue = (today - invoice.due_date).days
             total_days += days_overdue
-        
+
         return int(total_days / len(overdue_invoices))
 
     def _get_ar_health_status(self, overdue_percentage, dso, dso_target):
@@ -85,9 +85,9 @@ class ARDashboardView(APIView):
 
     def _get_status_label(self, value, thresholds):
         """Get status label based on value and thresholds"""
-        if value >= thresholds['high']:
+        if value >= thresholds["high"]:
             return "High"
-        elif value <= thresholds['low']:
+        elif value <= thresholds["low"]:
             return "Low"
         else:
             return "Normal"
@@ -132,9 +132,7 @@ class ARDashboardView(APIView):
         )
 
         # Calculate Overdue AR
-        overdue_invoices = [
-            inv for inv in outstanding_invoices if inv.is_overdue
-        ]
+        overdue_invoices = [inv for inv in outstanding_invoices if inv.is_overdue]
         overdue_ar = sum(inv.balance_amount for inv in overdue_invoices)
         overdue_percentage = (
             (overdue_ar / total_receivables * 100) if total_receivables > 0 else 0.0
@@ -161,16 +159,19 @@ class ARDashboardView(APIView):
 
         # This Month Collections
         this_month_collections = all_invoices.filter(
-            status=InvoicesStatusChoices.PAID,
-            updated_at__gte=current_month_start
+            status=InvoicesStatusChoices.PAID, updated_at__gte=current_month_start
         ).aggregate(total=Sum("paid_amount"))["total"] or Decimal("0.00")
 
         # Invoice Status Counts
         invoice_status_counts = {
             "total": all_invoices.count(),
             "paid": all_invoices.filter(status=InvoicesStatusChoices.PAID).count(),
-            "pending": all_invoices.filter(status=InvoicesStatusChoices.PENDING).count(),
-            "overdue": all_invoices.filter(status=InvoicesStatusChoices.OVERDUE).count(),
+            "pending": all_invoices.filter(
+                status=InvoicesStatusChoices.PENDING
+            ).count(),
+            "overdue": all_invoices.filter(
+                status=InvoicesStatusChoices.OVERDUE
+            ).count(),
         }
 
         # Ageing Distribution
@@ -256,18 +257,21 @@ class ARDashboardView(APIView):
         ]
 
         # Priority Actions
-        critical_count = len([
-            inv for inv in overdue_invoices
-            if (today - inv.due_date).days > 90
-        ])
+        critical_count = len(
+            [inv for inv in overdue_invoices if (today - inv.due_date).days > 90]
+        )
         due_this_week = outstanding_invoices.filter(
             due_date__gte=week_start, due_date__lte=week_end
         ).count()
 
         # Top 5 Customers by Revenue
-        customer_outstanding = defaultdict(lambda: {"outstanding": Decimal("0"), "invoices": []})
+        customer_outstanding = defaultdict(
+            lambda: {"outstanding": Decimal("0"), "invoices": []}
+        )
         for invoice in outstanding_invoices:
-            customer_outstanding[invoice.customer_name]["outstanding"] += invoice.balance_amount
+            customer_outstanding[invoice.customer_name][
+                "outstanding"
+            ] += invoice.balance_amount
             customer_outstanding[invoice.customer_name]["invoices"].append(invoice)
 
         top_customers = sorted(
@@ -290,33 +294,41 @@ class ARDashboardView(APIView):
         )[:5]
 
         # Top Customer Concentration
-        top_customer_concentration = top_customers[0]["percentage"] if top_customers else 0.0
-        top_customer_name = top_customers[0]["customer_name"] if top_customers else "N/A"
+        top_customer_concentration = (
+            top_customers[0]["percentage"] if top_customers else 0.0
+        )
+        top_customer_name = (
+            top_customers[0]["customer_name"] if top_customers else "N/A"
+        )
 
         # Collection Trend (Last 6 months)
         collection_trend = []
         for i in range(5, -1, -1):  # Last 6 months
             month_start = (current_month_start - timedelta(days=30 * i)).replace(day=1)
-            month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-            
+            month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(
+                days=1
+            )
+
             month_invoiced = all_invoices.filter(
                 invoice_date__gte=month_start, invoice_date__lte=month_end
             ).aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
-            
+
             month_collected = all_invoices.filter(
                 status=InvoicesStatusChoices.PAID,
                 updated_at__gte=month_start,
-                updated_at__lte=month_end
+                updated_at__lte=month_end,
             ).aggregate(total=Sum("paid_amount"))["total"] or Decimal("0.00")
 
             month_name = month_start.strftime("%b")
-            collection_trend.append({
-                "month": month_name,
-                "collected": float(month_collected),
-                "collected_display": self._in_lakhs(month_collected),
-                "invoiced": float(month_invoiced),
-                "invoiced_display": self._in_lakhs(month_invoiced),
-            })
+            collection_trend.append(
+                {
+                    "month": month_name,
+                    "collected": float(month_collected),
+                    "collected_display": self._in_lakhs(month_collected),
+                    "invoiced": float(month_invoiced),
+                    "invoiced_display": self._in_lakhs(month_invoiced),
+                }
+            )
 
         # Build response
         response_data = {
@@ -331,12 +343,16 @@ class ARDashboardView(APIView):
                 "overdue_ar_display": self._in_crores(overdue_ar),
                 "avg_days_delinquent": avg_days_delinquent,
                 "this_month_collections": float(this_month_collections),
-                "this_month_collections_display": self._in_lakhs(this_month_collections),
+                "this_month_collections_display": self._in_lakhs(
+                    this_month_collections
+                ),
                 "this_month_collections_trend": None,  # Can be calculated from previous month
                 "invoice_status": invoice_status_counts,
             },
             "ar_health_status": {
-                "status": self._get_ar_health_status(overdue_percentage, dso, dso_target),
+                "status": self._get_ar_health_status(
+                    overdue_percentage, dso, dso_target
+                ),
                 "total_receivables": float(total_receivables),
                 "total_receivables_display": self._in_crores(total_receivables),
                 "metrics": {
@@ -375,4 +391,3 @@ class ARDashboardView(APIView):
         serializer.is_valid(raise_exception=True)
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
-

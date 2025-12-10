@@ -18,7 +18,7 @@ from financial.enums import (
     InvoicesPaymentTerms,
     InvoicesStatusChoices,
 )
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 from financial.views.api.account_receivable.ar_aging import get_company_from_request
 
 

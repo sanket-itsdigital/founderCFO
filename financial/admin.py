@@ -12,7 +12,7 @@ from financial.models import (
     EmailTemplate,
     FactoringRequest,
     FactoringRequestInvoice,
-    Invoice,
+    # Invoice,  # Moved to revenue app
     PaymentPlan,
     PaymentPlanInstallment,
     Vendor,
@@ -22,25 +22,11 @@ from financial.models import (
 from financial.models.account_receivable.customer import Balance_summary
 
 
-@admin.register(Invoice)
-class InvoiceAdmin(admin.ModelAdmin):
-    list_display = [
-        "company",
-        "invoice_number",
-        "customer_name",
-        "invoice_date",
-        "due_date",
-        "total_amount",
-        "paid_amount",
-        "status",
-        "balance_amount",
-    ]
-    list_filter = ["status", "invoice_date", "due_date", "created_at"]
-    search_fields = ["invoice_number", "customer_name", "customer_email"]
-    readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by"]
-    date_hierarchy = "invoice_date"
+# Invoice admin has been moved to revenue app
+# @admin.register(Invoice)
+# class InvoiceAdmin(admin.ModelAdmin):
+#     ...
 
- 
 
 @admin.register(DunningQueue)
 class DunningQueueAdmin(admin.ModelAdmin):
@@ -94,7 +80,8 @@ class DisputeAdmin(admin.ModelAdmin):
     ]
     readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by"]
     date_hierarchy = "created_at"
- 
+
+
 @admin.register(CashFlowProjection)
 class CashFlowProjectionAdmin(admin.ModelAdmin):
     list_display = [
@@ -274,18 +261,13 @@ class VendorAdmin(admin.ModelAdmin):
     search_fields = ["name", "email", "phone", "gstin", "pan", "contact_person"]
     readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by"]
     fieldsets = (
-        ("Basic Information", {
-            "fields": ("company", "name", "contact_person", "email", "phone")
-        }),
-        ("Address", {
-            "fields": ("address",)
-        }),
-        ("Tax Information", {
-            "fields": ("gstin", "pan")
-        }),
-        ("Additional", {
-            "fields": ("payment_terms", "notes")
-        }),
+        (
+            "Basic Information",
+            {"fields": ("company", "name", "contact_person", "email", "phone")},
+        ),
+        ("Address", {"fields": ("address",)}),
+        ("Tax Information", {"fields": ("gstin", "pan")}),
+        ("Additional", {"fields": ("payment_terms", "notes")}),
     )
 
 
@@ -307,24 +289,24 @@ class BillAdmin(admin.ModelAdmin):
     ]
     list_filter = ["status", "category", "bill_date", "due_date", "created_at"]
     search_fields = ["bill_number", "vendor__name", "vendor_name", "category"]
-    readonly_fields = ["id", "created_at", "updated_at", "created_by", "updated_by", "balance_amount"]
+    readonly_fields = [
+        "id",
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+        "balance_amount",
+    ]
     date_hierarchy = "bill_date"
     fieldsets = (
-        ("Basic Information", {
-            "fields": ("company", "bill_number", "vendor", "vendor_name", "category")
-        }),
-        ("Dates", {
-            "fields": ("bill_date", "due_date")
-        }),
-        ("Amounts", {
-            "fields": ("amount", "paid_amount", "balance_amount")
-        }),
-        ("Status", {
-            "fields": ("status",)
-        }),
-        ("Additional", {
-            "fields": ("notes",)
-        }),
+        (
+            "Basic Information",
+            {"fields": ("company", "bill_number", "vendor", "vendor_name", "category")},
+        ),
+        ("Dates", {"fields": ("bill_date", "due_date")}),
+        ("Amounts", {"fields": ("amount", "paid_amount", "balance_amount")}),
+        ("Status", {"fields": ("status",)}),
+        ("Additional", {"fields": ("notes",)}),
     )
 
 
@@ -352,16 +334,25 @@ class CreditAdmin(admin.ModelAdmin):
         "utilization_percentage",
     ]
     fieldsets = (
-        ("Basic Information", {
-            "fields": ("company", "customer_name")
-        }),
-        ("Credit Details", {
-            "fields": ("credit_limit", "payment_score", "risk_level", "avg_days_to_pay")
-        }),
-        ("Calculated Fields", {
-            "fields": ("current_balance", "utilization_percentage"),
-            "classes": ("collapse",)
-        }),
+        ("Basic Information", {"fields": ("company", "customer_name")}),
+        (
+            "Credit Details",
+            {
+                "fields": (
+                    "credit_limit",
+                    "payment_score",
+                    "risk_level",
+                    "avg_days_to_pay",
+                )
+            },
+        ),
+        (
+            "Calculated Fields",
+            {
+                "fields": ("current_balance", "utilization_percentage"),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
 
@@ -458,16 +449,11 @@ class BillPaymentAdmin(admin.ModelAdmin):
     ]
     date_hierarchy = "payment_date"
     fieldsets = (
-        ("Basic Information", {
-            "fields": ("company", "bill", "payment_date", "amount", "payment_method")
-        }),
-        ("Payment Details", {
-            "fields": ("reference_number", "bank_name")
-        }),
-        ("Deductions", {
-            "fields": ("tds_deducted", "discount_taken")
-        }),
-        ("Additional", {
-            "fields": ("notes",)
-        }),
+        (
+            "Basic Information",
+            {"fields": ("company", "bill", "payment_date", "amount", "payment_method")},
+        ),
+        ("Payment Details", {"fields": ("reference_number", "bank_name")}),
+        ("Deductions", {"fields": ("tds_deducted", "discount_taken")}),
+        ("Additional", {"fields": ("notes",)}),
     )

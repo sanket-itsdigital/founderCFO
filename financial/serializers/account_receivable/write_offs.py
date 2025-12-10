@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from financial.models.account_receivable.write_offs import WriteOff
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 
 
 class WriteOffCandidateSerializer(serializers.Serializer):
     """Serializer for write-off candidate invoices"""
+
     invoice_id = serializers.UUIDField()
     invoice_number = serializers.CharField()
     customer_name = serializers.CharField()
@@ -20,8 +21,13 @@ class WriteOffCandidateSerializer(serializers.Serializer):
 
 class WriteOffSerializer(serializers.ModelSerializer):
     """Serializer for WriteOff"""
-    invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True)
-    customer_name = serializers.CharField(source='invoice.customer_name', read_only=True)
+
+    invoice_number = serializers.CharField(
+        source="invoice.invoice_number", read_only=True
+    )
+    customer_name = serializers.CharField(
+        source="invoice.customer_name", read_only=True
+    )
     write_off_amount_display = serializers.SerializerMethodField()
     write_off_date_display = serializers.SerializerMethodField()
 
@@ -43,6 +49,7 @@ class WriteOffSerializer(serializers.ModelSerializer):
 
     def get_write_off_amount_display(self, obj):
         from decimal import Decimal
+
         if obj.write_off_amount == 0:
             return "₹0.00L"
         lakhs = obj.write_off_amount / Decimal("100000")
@@ -50,4 +57,3 @@ class WriteOffSerializer(serializers.ModelSerializer):
 
     def get_write_off_date_display(self, obj):
         return obj.write_off_date.strftime("%m/%d/%Y")
-

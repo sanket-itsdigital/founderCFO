@@ -9,11 +9,12 @@ from financial.enums import (
     DisputeStatusChoices,
     DisputePriorityChoices,
 )
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 
 
 class Dispute(BaseModel):
     """Invoice disputes"""
+
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
@@ -54,13 +55,15 @@ class Dispute(BaseModel):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"Dispute for {self.invoice.invoice_number} - {self.get_status_display()}"
+        return (
+            f"Dispute for {self.invoice.invoice_number} - {self.get_status_display()}"
+        )
 
     def mark_as_resolved(self, resolution_notes=""):
         """Mark dispute as resolved"""
         from django.utils import timezone
+
         self.status = DisputeStatusChoices.RESOLVED
         self.resolution_notes = resolution_notes
         self.resolved_at = timezone.now()
-        self.save(update_fields=['status', 'resolution_notes', 'resolved_at'])
-
+        self.save(update_fields=["status", "resolution_notes", "resolved_at"])

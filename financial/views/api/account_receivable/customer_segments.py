@@ -9,9 +9,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Company
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 from financial.enums import InvoicesStatusChoices
-from financial.serializers.account_receivable.customer_segments import CustomerSegmentsSerializer
+from financial.serializers.account_receivable.customer_segments import (
+    CustomerSegmentsSerializer,
+)
 from financial.views.api.account_receivable.ar_aging import get_company_from_request
 
 

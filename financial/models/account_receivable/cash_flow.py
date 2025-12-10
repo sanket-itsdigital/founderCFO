@@ -6,12 +6,13 @@ from django.utils import timezone
 
 from accounts.models import Company
 from backend.models import BaseModel
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 from financial.enums import InvoicesStatusChoices
 
 
 class CashFlowProjection(BaseModel):
     """Cash flow projections for a company"""
+
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
@@ -53,4 +54,3 @@ class CashFlowProjection(BaseModel):
 
     def __str__(self):
         return f"Cash Flow Projection - {self.company.name} - {self.projection_date}"
-

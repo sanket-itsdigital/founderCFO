@@ -5,11 +5,12 @@ from django.utils import timezone
 
 from accounts.models import Company
 from backend.models import BaseModel
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 
 
 class BankTransaction(BaseModel):
     """Bank transactions for reconciliation"""
+
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
@@ -59,12 +60,11 @@ class BankTransaction(BaseModel):
         self.is_matched = True
         self.matched_invoice = invoice
         self.matched_at = timezone.now()
-        self.save(update_fields=['is_matched', 'matched_invoice', 'matched_at'])
+        self.save(update_fields=["is_matched", "matched_invoice", "matched_at"])
 
     def unmatch(self):
         """Unmatch this transaction"""
         self.is_matched = False
         self.matched_invoice = None
         self.matched_at = None
-        self.save(update_fields=['is_matched', 'matched_invoice', 'matched_at'])
-
+        self.save(update_fields=["is_matched", "matched_invoice", "matched_at"])
