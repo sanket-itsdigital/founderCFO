@@ -205,6 +205,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://rabbitstaybackend.pythonanywhere.com",
     "https://rabbitstay.com",
     "https://rabbitstays.com",
+    "https://cfo-ten.vercel.app",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -213,4 +214,5 @@ CSRF_TRUSTED_ORIGINS = [
     "https://vendor.rabbitstay.com",
     "https://rabbitstay.com",
     "https://www.rabbitstay.com",
+    "https://cfo-ten.vercel.app",
 ]
