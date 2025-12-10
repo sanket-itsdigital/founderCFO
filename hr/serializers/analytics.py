@@ -56,3 +56,4 @@ class AnalyticsSerializer(serializers.Serializer):
     recruitment_pipeline = serializers.ListField(child=RecruitmentPipelineSerializer())
     avg_salary_by_department = serializers.ListField(child=DepartmentSalarySerializer())
     budget_vs_actual = serializers.ListField(child=BudgetActualSerializer())
+

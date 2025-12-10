@@ -10,9 +10,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from hr.models.headcount import Headcount
+from hr.models.recruitment import Recruitment, RecruitmentStatusChoices
+from hr.models.budget import Budget
 from hr.enums import EmploymentStatus, Level
 from hr.serializers.analytics import AnalyticsSerializer
 from sales.views.api.utils import get_company_from_request
+from django.db.models.functions import Coalesce
 
 
 class AnalyticsView(APIView):
@@ -115,39 +118,79 @@ class AnalyticsView(APIView):
         headcount_by_level.sort(key=lambda x: x["percentage"], reverse=True)
 
         # 3. Monthly Hiring Trend (based on start_date)
-        # Get last 12 months of hiring data
+        # Get last 6 months of hiring data to match the image
         now = timezone.now().date()
-        twelve_months_ago = now - timedelta(days=365)
+        six_months_ago = now - timedelta(days=180)
 
         monthly_hiring = defaultdict(int)
         hiring_records = active_headcounts.filter(
-            start_date__gte=twelve_months_ago, start_date__lte=now
+            start_date__gte=six_months_ago, start_date__lte=now
         )
 
         for employee in hiring_records:
-            month_key = self._get_month_key(employee.start_date)
-            monthly_hiring[month_key] += 1
+            if employee.start_date:
+                month_key = self._get_month_key(employee.start_date)
+                monthly_hiring[month_key] += 1
 
         # Generate list of months with hiring data, sorted chronologically
-        monthly_hiring_trend = [
-            {"month": month, "hiring_count": count}
-            for month, count in sorted(monthly_hiring.items())
-        ]
+        # Ensure we have data for the last 6 months even if count is 0
+        monthly_hiring_trend = []
+        current_year = now.year
+        current_month = now.month
+
+        for i in range(6):
+            month = current_month - i
+            year = current_year
+            while month <= 0:
+                month += 12
+                year -= 1
+            month_key = self._get_month_key(datetime(year, month, 1).date())
+            monthly_hiring_trend.append(
+                {"month": month_key, "hiring_count": monthly_hiring.get(month_key, 0)}
+            )
+
+        # Reverse to show oldest first
+        monthly_hiring_trend.reverse()
 
         # 4. Recruitment Pipeline
-        # Note: This is a placeholder structure since there's no recruitment model yet
-        # In a real implementation, this would query a Recruitment/JobPosting model
-        # For now, returning empty or placeholder data
+        # Query actual Recruitment model data
+        recruitment_data = (
+            Recruitment.objects.filter(company=company)
+            .values("status")
+            .annotate(count=Count("id"))
+        )
+
+        # Create a dictionary for quick lookup
+        recruitment_dict = {item["status"]: item["count"] for item in recruitment_data}
+
+        # Build recruitment pipeline with all statuses
+        # Use display names to match the image format (OPEN, IN PROGRESS, FILLED, CANCELLED)
         recruitment_pipeline = [
-            {"status": "OPEN", "count": 0},
-            {"status": "IN PROGRESS", "count": 0},
-            {"status": "FILLED", "count": 0},
-            {"status": "CANCELLED", "count": 0},
+            {
+                "status": "OPEN",
+                "count": recruitment_dict.get(RecruitmentStatusChoices.OPEN, 0),
+            },
+            {
+                "status": "IN PROGRESS",
+                "count": recruitment_dict.get(RecruitmentStatusChoices.IN_PROGRESS, 0),
+            },
+            {
+                "status": "FILLED",
+                "count": recruitment_dict.get(RecruitmentStatusChoices.FILLED, 0),
+            },
+            {
+                "status": "CANCELLED",
+                "count": recruitment_dict.get(
+                    "cancelled", 0
+                ),  # Handle if CANCELLED exists
+            },
         ]
 
         # 5. Average Salary by Department
         dept_salary_data = (
-            active_headcounts.filter(department__isnull=False)
+            active_headcounts.filter(
+                department__isnull=False, salary_annual__isnull=False
+            )
             .values("department__name")
             .annotate(avg_salary=Avg("salary_annual"))
             .order_by("-avg_salary")
@@ -164,10 +207,7 @@ class AnalyticsView(APIView):
         ]
 
         # 6. Budget vs Actual
-        # Note: This is a placeholder structure since there's no budget model yet
-        # In a real implementation, this would query a Budget model
-        # Calculate actual monthly payroll based on employees active in each month
-        # Get last 6 months
+        # Query actual Budget model data for the last 6 months
         budget_vs_actual = []
         current_year = now.year
         current_month = now.month
@@ -180,38 +220,33 @@ class AnalyticsView(APIView):
                 month += 12
                 year -= 1
 
-            month_date = datetime(year, month, 1).date()
-            month_key = self._get_month_key(month_date)
+            month_key = self._get_month_key(datetime(year, month, 1).date())
 
-            # Calculate last day of month
-            _, last_day = monthrange(year, month)
-            month_end = datetime(year, month, last_day).date()
-
-            # Get employees who were active in this month
-            # Started before or during month, and (no end_date or end_date after month start)
-            month_employees = Headcount.objects.filter(
+            # Get budgets for this month (where period year and month match)
+            month_budgets = Budget.objects.filter(
                 company=company,
-                start_date__lte=month_end,
-            ).exclude(
-                # Exclude those who ended before this month
-                end_date__lt=month_date
+                period__year=year,
+                period__month=month,
             )
 
-            # Calculate monthly payroll (annual salary / 12)
-            monthly_payroll = (
-                month_employees.aggregate(total=Sum("salary_annual"))["total"]
-                or Decimal("0.00")
-            ) / Decimal("12")
+            # Aggregate budget and actual amounts
+            budget_total = month_budgets.aggregate(
+                total=Coalesce(Sum("budget_amount"), Decimal("0.00"))
+            )["total"] or Decimal("0.00")
+            if not isinstance(budget_total, Decimal):
+                budget_total = Decimal(str(budget_total))
 
-            # Placeholder budget (5% higher than actual for demo purposes)
-            # In production, this would come from a Budget model
-            budget_amount = monthly_payroll * Decimal("1.05")
+            actual_total = month_budgets.aggregate(
+                total=Coalesce(Sum("actual_amount"), Decimal("0.00"))
+            )["total"] or Decimal("0.00")
+            if not isinstance(actual_total, Decimal):
+                actual_total = Decimal(str(actual_total))
 
             budget_vs_actual.append(
                 {
                     "month": month_key,
-                    "budget": self._round_decimal(budget_amount),
-                    "actual": self._round_decimal(monthly_payroll),
+                    "budget": self._round_decimal(budget_total),
+                    "actual": self._round_decimal(actual_total),
                 }
             )
 

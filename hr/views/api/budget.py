@@ -62,15 +62,18 @@ class BudgetView(APIView):
             )
 
         # Get year from query params (default: current year)
-        year = int(request.query_params.get("year", timezone.now().year))
+        try:
+            year = int(request.query_params.get("year", timezone.now().year))
+        except (ValueError, TypeError):
+            year = timezone.now().year
 
-        # Get all budgets for the company in the specified year
-        start_date = datetime(year, 1, 1).date()
-        end_date = datetime(year, 12, 31).date()
-
+        # Get all budgets for the company in the specified year (e.g., 2025)
+        # Filter by period__year to select all budgets where period date is in the specified year
+        # Example: period__year=2025 will match dates like 2025-01-01, 2025-06-15, 2025-12-31, etc.
         all_budgets = Budget.objects.filter(
-            company=company, period__gte=start_date, period__lte=end_date
-        )
+            company=company,
+            period__year=year,  # This filters for all dates in the specified year (e.g., 2025)
+        ).select_related("category", "department")
 
         # Calculate KPIs
         kpis = self._calculate_kpis(all_budgets, company)
