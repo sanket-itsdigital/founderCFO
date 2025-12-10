@@ -4,12 +4,14 @@ from financial.views.api import (
     ARDashboardView,
     InvoiceListCreateView,
     InvoiceRetrieveUpdateDestroyView,
+    InvoiceImportView,
     CustomerBalanceSummaryView,
     CustomerBalanceDetailView,
     CustomerSegmentsView,
     CollectionPriorityView,
     BillListCreateView,
     BillRetrieveUpdateDestroyView,
+    BillImportView,
     APAgeingSummaryView,
     VendorBalanceSummaryView,
     PaymentPriorityQueueView,
@@ -41,6 +43,11 @@ urlpatterns = [
         "invoices/<uuid:id>/",
         InvoiceRetrieveUpdateDestroyView.as_view(),
         name="invoice-detail",
+    ),
+    path(
+        "invoices/import/",
+        InvoiceImportView.as_view(),
+        name="invoice-import",
     ),
     # Customer Balance Summary
     path(
@@ -77,7 +84,6 @@ urlpatterns = [
         CollectionPriorityView.as_view(),
         name="collection-priority",
     ),
-     
     # Cash Flow
     path(
         "cash-flow/projection/",
@@ -94,6 +100,11 @@ urlpatterns = [
         "payable/bills/<uuid:id>/",
         BillRetrieveUpdateDestroyView.as_view(),
         name="bill-detail",
+    ),
+    path(
+        "payable/bills/import/",
+        BillImportView.as_view(),
+        name="bill-import",
     ),
     path(
         "payable/ap-ageing-summary/",
