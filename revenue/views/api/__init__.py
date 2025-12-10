@@ -23,6 +23,7 @@ from revenue.views.api.analytics import (
     BranchPerformanceView,
     GeographicOverviewView,
     GeographicDetailsView,
+    GSTOverviewView,
 )
 
 __all__ = [
@@ -48,4 +49,5 @@ __all__ = [
     "BranchPerformanceView",
     "GeographicOverviewView",
     "GeographicDetailsView",
+    "GSTOverviewView",
 ]

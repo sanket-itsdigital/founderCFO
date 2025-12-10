@@ -1569,3 +1569,205 @@ class GeographicDetailsView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class GSTOverviewView(APIView):
+    """GST Overview Analytics - Combined GST Components, B2B/B2C Breakdown, and HSN/SAC Summary"""
+
+    permission_classes = [IsAuthenticated]
+
+    def _in_lakhs(self, amount: Decimal) -> str:
+        """Convert amount to lakhs format (₹XX.XXL)"""
+        if amount == 0:
+            return "₹0.00L"
+        lakhs = amount / Decimal("100000")
+        return f"₹{lakhs.quantize(Decimal('0.01'))}L"
+
+    def _in_thousands(self, amount: Decimal) -> str:
+        """Convert amount to thousands format (₹XX.XXK)"""
+        if amount == 0:
+            return "₹0.00K"
+        thousands = amount / Decimal("1000")
+        return f"₹{thousands.quantize(Decimal('0.01'))}K"
+
+    def _format_amount(self, amount: Decimal) -> str:
+        """Format amount as K or L based on value"""
+        if amount >= Decimal("100000"):
+            return self._in_lakhs(amount)
+        else:
+            return self._in_thousands(amount)
+
+    def get(self, request):
+        """Get GST Overview data including components, B2B/B2C breakdown, and HSN/SAC summary"""
+        company = get_company_from_request(request)
+        if not company:
+            return Response(
+                {"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        base_qs = Invoice.objects.filter(company=company)
+
+        # GST Components
+        gst_summary = base_qs.aggregate(
+            total_taxable_value=Coalesce(Sum("taxable_value"), Decimal("0.00")),
+            total_cgst=Coalesce(Sum("cgst_amount"), Decimal("0.00")),
+            total_sgst=Coalesce(Sum("sgst_amount"), Decimal("0.00")),
+            total_igst=Coalesce(Sum("igst_amount"), Decimal("0.00")),
+        )
+
+        taxable_value = gst_summary["total_taxable_value"] or Decimal("0.00")
+        cgst = gst_summary["total_cgst"] or Decimal("0.00")
+        sgst = gst_summary["total_sgst"] or Decimal("0.00")
+        igst = gst_summary["total_igst"] or Decimal("0.00")
+        cess = Decimal("0.00")  # Cess field not in model, defaulting to 0
+
+        # Total GST (Output Tax Payable) = CGST + SGST + IGST + Cess
+        total_gst = cgst + sgst + igst + cess
+
+        # B2B vs B2C Breakdown
+        # B2B: Invoices with customer_gstin
+        b2b_invoices = base_qs.exclude(
+            Q(customer_gstin__isnull=True) | Q(customer_gstin="")
+        )
+        b2b_count = b2b_invoices.count()
+        b2b_total = b2b_invoices.aggregate(
+            total=Coalesce(Sum("total_amount"), Decimal("0.00"))
+        )["total"] or Decimal("0.00")
+
+        # B2C: Invoices without customer_gstin
+        b2c_invoices = base_qs.filter(
+            Q(customer_gstin__isnull=True) | Q(customer_gstin="")
+        )
+        b2c_count = b2c_invoices.count()
+        b2c_total = b2c_invoices.aggregate(
+            total=Coalesce(Sum("total_amount"), Decimal("0.00"))
+        )["total"] or Decimal("0.00")
+
+        # Total invoices
+        total_invoices = b2b_count + b2c_count
+        total_revenue = b2b_total + b2c_total
+
+        # Calculate percentages
+        b2b_percentage = (
+            (b2b_count / total_invoices * 100)
+            if total_invoices > 0
+            else Decimal("0.00")
+        )
+        b2c_percentage = (
+            (b2c_count / total_invoices * 100)
+            if total_invoices > 0
+            else Decimal("0.00")
+        )
+
+        # HSN/SAC Summary
+        hsn_qs = base_qs.exclude(Q(hsn_sac_code__isnull=True) | Q(hsn_sac_code=""))
+
+        hsn_summary = (
+            hsn_qs.values("hsn_sac_code")
+            .annotate(
+                invoices_count=Count("id"),
+                taxable_value=Coalesce(Sum("taxable_value"), Decimal("0.00")),
+                cgst=Coalesce(Sum("cgst_amount"), Decimal("0.00")),
+                sgst=Coalesce(Sum("sgst_amount"), Decimal("0.00")),
+                igst=Coalesce(Sum("igst_amount"), Decimal("0.00")),
+            )
+            .order_by("-taxable_value")
+        )
+
+        hsn_list = []
+        hsn_total_invoices = 0
+        hsn_total_taxable_value = Decimal("0.00")
+        hsn_total_cgst = Decimal("0.00")
+        hsn_total_sgst = Decimal("0.00")
+        hsn_total_igst = Decimal("0.00")
+
+        for hsn in hsn_summary:
+            total_gst = hsn["cgst"] + hsn["sgst"] + hsn["igst"]
+
+            hsn_list.append(
+                {
+                    "hsn_sac_code": hsn["hsn_sac_code"],
+                    "invoices_count": hsn["invoices_count"],
+                    "taxable_value": float(hsn["taxable_value"]),
+                    "taxable_value_display": self._format_amount(hsn["taxable_value"]),
+                    "cgst": float(hsn["cgst"]),
+                    "cgst_display": self._format_amount(hsn["cgst"]),
+                    "sgst": float(hsn["sgst"]),
+                    "sgst_display": self._format_amount(hsn["sgst"]),
+                    "igst": float(hsn["igst"]),
+                    "igst_display": self._format_amount(hsn["igst"]),
+                    "total_gst": float(total_gst),
+                    "total_gst_display": self._format_amount(total_gst),
+                }
+            )
+
+            hsn_total_invoices += hsn["invoices_count"]
+            hsn_total_taxable_value += hsn["taxable_value"]
+            hsn_total_cgst += hsn["cgst"]
+            hsn_total_sgst += hsn["sgst"]
+            hsn_total_igst += hsn["igst"]
+
+        hsn_total_gst = hsn_total_cgst + hsn_total_sgst + hsn_total_igst
+
+        return Response(
+            {
+                "gst_components": {
+                    "taxable_value": float(taxable_value),
+                    "taxable_value_display": self._format_amount(taxable_value),
+                    "cgst": float(cgst),
+                    "cgst_display": self._format_amount(cgst),
+                    "sgst": float(sgst),
+                    "sgst_display": self._format_amount(sgst),
+                    "igst": float(igst),
+                    "igst_display": self._format_amount(igst),
+                    "cess": float(cess),
+                    "cess_display": self._format_amount(cess),
+                    "total_gst": float(total_gst),
+                    "total_gst_display": self._format_amount(total_gst),
+                    "output_tax_payable": float(total_gst),
+                    "output_tax_payable_display": self._format_amount(total_gst),
+                },
+                "invoice_breakdown": {
+                    "b2b": {
+                        "count": b2b_count,
+                        "description": f"{b2b_count} invoices with GSTIN",
+                        "total_value": float(b2b_total),
+                        "total_value_display": self._format_amount(b2b_total),
+                        "percentage": float(b2b_percentage),
+                        "percentage_display": f"{b2b_percentage:.1f}%",
+                    },
+                    "b2c": {
+                        "count": b2c_count,
+                        "description": f"{b2c_count} invoices without GSTIN",
+                        "total_value": float(b2c_total),
+                        "total_value_display": self._format_amount(b2c_total),
+                        "percentage": float(b2c_percentage),
+                        "percentage_display": f"{b2c_percentage:.1f}%",
+                    },
+                    "total": {
+                        "count": total_invoices,
+                        "total_value": float(total_revenue),
+                        "total_value_display": self._format_amount(total_revenue),
+                    },
+                },
+                "hsn_sac_summary": {
+                    "items": hsn_list,
+                    "totals": {
+                        "invoices_count": hsn_total_invoices,
+                        "taxable_value": float(hsn_total_taxable_value),
+                        "taxable_value_display": self._format_amount(
+                            hsn_total_taxable_value
+                        ),
+                        "cgst": float(hsn_total_cgst),
+                        "cgst_display": self._format_amount(hsn_total_cgst),
+                        "sgst": float(hsn_total_sgst),
+                        "sgst_display": self._format_amount(hsn_total_sgst),
+                        "igst": float(hsn_total_igst),
+                        "igst_display": self._format_amount(hsn_total_igst),
+                        "total_gst": float(hsn_total_gst),
+                        "total_gst_display": self._format_amount(hsn_total_gst),
+                    },
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
