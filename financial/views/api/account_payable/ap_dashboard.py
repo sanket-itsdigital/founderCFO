@@ -9,11 +9,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.utils import get_user_company
 from financial.models.account_payable.bills import Bill
 from financial.models.account_payable.payment import BillPayment
 from financial.enums import BillsStatusChoices
 from financial.serializers.account_payable.ap_dashboard import APDashboardSerializer
-from financial.views.api.account_payable.ap_aging import get_company_from_request
 
 
 class APDashboardView(APIView):
@@ -64,7 +64,7 @@ class APDashboardView(APIView):
     def _calculate_payment_efficiency(self, on_time_payments, total_payments):
         """Calculate Payment Efficiency percentage"""
         if total_payments == 0:
-            return 100.0  # If no payments, assume 100% efficiency
+            return 0.0  # If no payments, return 0% (no data available)
         efficiency = (on_time_payments / total_payments) * 100
         return round(float(efficiency), 1)
 
@@ -72,17 +72,17 @@ class APDashboardView(APIView):
         """Calculate average payment days"""
         if not paid_bills:
             return 0
-        
+
         total_days = 0
         count = 0
         for bill in paid_bills:
             # Get the first payment date for this bill
-            first_payment = bill.payments.order_by('payment_date').first()
+            first_payment = bill.payments.order_by("payment_date").first()
             if first_payment:
                 payment_days = (first_payment.payment_date - bill.bill_date).days
                 total_days += max(0, payment_days)
                 count += 1
-        
+
         return int(total_days / count) if count > 0 else 0
 
     def _get_ap_health_status(self, overdue_percentage, dpo, dpo_target):
@@ -103,14 +103,14 @@ class APDashboardView(APIView):
             "61_90_days": Decimal("0"),
             "90_plus_days": Decimal("0"),
         }
-        
+
         for bill in bills:
             balance = bill.balance_amount
             if balance <= 0:
                 continue
-            
+
             days_until_due = (bill.due_date - today).days
-            
+
             # Current: Due today or overdue (0 or negative days)
             if days_until_due <= 0:
                 buckets["current"] += balance
@@ -126,12 +126,13 @@ class APDashboardView(APIView):
             # 90+ Days: Due in more than 90 days
             else:
                 buckets["90_plus_days"] += balance
-        
+
         return buckets
 
     def get(self, request, *args, **kwargs):
         """Calculate and return comprehensive AP dashboard data"""
-        company = get_company_from_request(request)
+        # Use get_user_company to get company from logged-in user only (ignore query params)
+        company = get_user_company(request.user)
         if not company:
             return Response(
                 {"error": "Company not found"},
@@ -142,24 +143,22 @@ class APDashboardView(APIView):
         last_90_days_start = today - timedelta(days=90)
 
         # Get all bills (excluding cancelled)
-        all_bills = Bill.objects.filter(company=company).exclude(
-            status=BillsStatusChoices.CANCELLED
-        ).select_related("vendor")
-
-        # Get outstanding bills
-        outstanding_bills = all_bills.filter(
-            amount__gt=F("paid_amount")
-        ).exclude(status=BillsStatusChoices.PAID)
-
-        # Calculate Total Payables
-        total_payables = sum(
-            bill.balance_amount for bill in outstanding_bills
+        all_bills = (
+            Bill.objects.filter(company=company)
+            .exclude(status=BillsStatusChoices.CANCELLED)
+            .select_related("vendor")
         )
 
+        # Get outstanding bills
+        outstanding_bills = all_bills.filter(amount__gt=F("paid_amount")).exclude(
+            status=BillsStatusChoices.PAID
+        )
+
+        # Calculate Total Payables
+        total_payables = sum(bill.balance_amount for bill in outstanding_bills)
+
         # Calculate Overdue
-        overdue_bills = [
-            bill for bill in outstanding_bills if bill.is_overdue
-        ]
+        overdue_bills = [bill for bill in outstanding_bills if bill.is_overdue]
         overdue_amount = sum(bill.balance_amount for bill in overdue_bills)
         overdue_percentage = (
             (overdue_amount / total_payables * 100) if total_payables > 0 else 0.0
@@ -176,25 +175,23 @@ class APDashboardView(APIView):
         paid_bills = all_bills.filter(status=BillsStatusChoices.PAID)
         on_time_payments = 0
         total_payments_count = 0
-        
+
         for bill in paid_bills:
-            first_payment = bill.payments.order_by('payment_date').first()
+            first_payment = bill.payments.order_by("payment_date").first()
             if first_payment:
                 total_payments_count += 1
                 payment_days = (first_payment.payment_date - bill.bill_date).days
                 due_days = (bill.due_date - bill.bill_date).days
                 if payment_days <= due_days:
                     on_time_payments += 1
-        
+
         payment_efficiency = self._calculate_payment_efficiency(
             on_time_payments, total_payments_count
         )
 
         # Calculate Discounts Captured
         all_payments = BillPayment.objects.filter(company=company)
-        discounts_captured = sum(
-            payment.discount_taken for payment in all_payments
-        )
+        discounts_captured = sum(payment.discount_taken for payment in all_payments)
 
         # Calculate Ageing Distribution (Current vs Overdue)
         current_amount = total_payables - overdue_amount
@@ -203,35 +200,45 @@ class APDashboardView(APIView):
         ageing_buckets = self._calculate_ageing_buckets(outstanding_bills, today)
 
         # Get AP Health Status
-        ap_health_status = self._get_ap_health_status(overdue_percentage, dpo, dpo_target)
+        ap_health_status = self._get_ap_health_status(
+            overdue_percentage, dpo, dpo_target
+        )
         status_message = f"{payment_efficiency}% on-time payments"
 
         # Generate Key Insights
         key_insights = []
         if len(overdue_bills) > 0:
-            key_insights.append({
-                "text": f"{len(overdue_bills)} overdue bills",
-                "type": "danger",
-                "color": "#EF4444",
-            })
+            key_insights.append(
+                {
+                    "text": f"{len(overdue_bills)} overdue bills",
+                    "type": "danger",
+                    "color": "#EF4444",
+                }
+            )
         if dpo > dpo_target * 1.5:
-            key_insights.append({
-                "text": f"High DPO ({dpo} days)",
-                "type": "warning",
-                "color": "#6B7280",
-            })
+            key_insights.append(
+                {
+                    "text": f"High DPO ({dpo} days)",
+                    "type": "warning",
+                    "color": "#6B7280",
+                }
+            )
         if discounts_captured > 0:
-            key_insights.append({
-                "text": f"{self._format_amount_display(discounts_captured)} saved",
-                "type": "success",
-                "color": "#3B82F6",
-            })
+            key_insights.append(
+                {
+                    "text": f"{self._format_amount_display(discounts_captured)} saved",
+                    "type": "success",
+                    "color": "#3B82F6",
+                }
+            )
         if payment_efficiency >= 90:
-            key_insights.append({
-                "text": "Excellent payment record",
-                "type": "success",
-                "color": "#10B981",
-            })
+            key_insights.append(
+                {
+                    "text": "Excellent payment record",
+                    "type": "success",
+                    "color": "#10B981",
+                }
+            )
 
         # Calculate average payment time percentage (placeholder - can be improved)
         avg_payment_days = self._calculate_avg_payment_days(paid_bills)
@@ -251,7 +258,9 @@ class APDashboardView(APIView):
                 "overdue_bills_count": len(overdue_bills),
                 "overdue_percentage": round(overdue_percentage, 1),
                 "discounts_captured": float(discounts_captured),
-                "discounts_captured_display": self._format_amount_display(discounts_captured),
+                "discounts_captured_display": self._format_amount_display(
+                    discounts_captured
+                ),
                 "early_payment_savings_percentage": 0.0,  # Placeholder
                 "total_bills": all_bills.count(),
                 "all_vendor_bills_percentage": 0.0,  # Placeholder
@@ -286,4 +295,3 @@ class APDashboardView(APIView):
         serializer.is_valid(raise_exception=True)
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
-

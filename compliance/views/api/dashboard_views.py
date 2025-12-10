@@ -7,8 +7,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.utils import get_user_company
 from compliance.models import ComplianceTaskMaster, CompliancePayments
-from compliance.views.api.task_views import get_company_from_request
 from backend.enums import ComplianceStatusChoices
 
 
@@ -28,8 +28,9 @@ class ComplianceDashboardView(APIView):
         all_tasks = ComplianceTaskMaster.objects.all()
 
         # For non-superusers, filter by company's selected tasks
+        # Use get_user_company to get company from logged-in user only (ignore query params)
         if not request.user.is_superuser:
-            company = get_company_from_request(request)
+            company = get_user_company(request.user)
             if company:
                 all_tasks = all_tasks.filter(companies=company)
             else:
@@ -88,8 +89,9 @@ class ComplianceDashboardView(APIView):
         all_payments = CompliancePayments.objects.all()
 
         # For non-superusers, filter payments by company's selected tasks
+        # Use get_user_company to get company from logged-in user only (ignore query params)
         if not request.user.is_superuser:
-            company = get_company_from_request(request)
+            company = get_user_company(request.user)
             if company:
                 # Get task IDs for company's selected tasks
                 company_task_ids = company.selected_compliance_tasks.values_list(
