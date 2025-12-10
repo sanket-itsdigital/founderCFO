@@ -48,6 +48,45 @@ class AllInvoicesView(generics.ListCreateAPIView):
             raise ValidationError({"error": "Company not found"})
         serializer.save(company=company)
 
+    def list(self, request, *args, **kwargs):
+        """
+        Return invoices plus summary totals:
+        - total_quantity
+        - total_taxable_value
+        - total_gst (cgst + sgst + igst)
+        - total_amount
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # Compute aggregates
+        aggregates = queryset.aggregate(
+            total_quantity=Coalesce(Sum("quantity"), Decimal("0")),
+            total_taxable_value=Coalesce(Sum("taxable_value"), Decimal("0")),
+            total_cgst=Coalesce(Sum("cgst_amount"), Decimal("0")),
+            total_sgst=Coalesce(Sum("sgst_amount"), Decimal("0")),
+            total_igst=Coalesce(Sum("igst_amount"), Decimal("0")),
+            total_amount=Coalesce(Sum("total_amount"), Decimal("0")),
+        )
+
+        total_gst = (
+            aggregates["total_cgst"]
+            + aggregates["total_sgst"]
+            + aggregates["total_igst"]
+        )
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(
+            {
+                "summary": {
+                    "total_quantity": aggregates["total_quantity"],
+                    "total_taxable_value": aggregates["total_taxable_value"],
+                    "total_gst": total_gst,
+                    "total_amount": aggregates["total_amount"],
+                },
+                "results": serializer.data,
+            }
+        )
+
 
 class InvoiceDetailView(generics.RetrieveUpdateDestroyAPIView):
     """API for Invoice Detail - Get, Update, Delete"""
@@ -84,9 +123,9 @@ class CustomerRevenueView(APIView):
             )
 
         # Aggregate revenue by customer
+        base_qs = Invoice.objects.filter(company=company)
         customer_data = (
-            Invoice.objects.filter(company=company)
-            .values("customer_name")
+            base_qs.values("customer_name")
             .annotate(
                 invoices_count=Count("id"),
                 revenue=Coalesce(Sum("total_amount"), Decimal("0.00")),
@@ -106,8 +145,25 @@ class CustomerRevenueView(APIView):
                 }
             )
 
+        # Overall summary
+        summary = base_qs.aggregate(
+            total_invoices=Count("id"),
+            total_revenue=Coalesce(Sum("total_amount"), Decimal("0.00")),
+            avg_revenue=Coalesce(Avg("total_amount"), Decimal("0.00")),
+        )
+
         serializer = CustomerRevenueSerializer(customers, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "summary": {
+                    "total_invoices": summary["total_invoices"] or 0,
+                    "total_revenue": summary["total_revenue"] or Decimal("0.00"),
+                    "avg_revenue": summary["avg_revenue"] or Decimal("0.00"),
+                },
+                "customers": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class CustomerInvoicesView(APIView):
@@ -170,9 +226,9 @@ class ProductRevenueView(APIView):
             )
 
         # Aggregate revenue by product
+        base_qs = Invoice.objects.filter(company=company)
         product_data = (
-            Invoice.objects.filter(company=company)
-            .values("product_name")
+            base_qs.values("product_name")
             .annotate(
                 invoices_count=Count("id"),
                 quantity=Coalesce(Sum("quantity"), Decimal("0.00")),
@@ -192,8 +248,25 @@ class ProductRevenueView(APIView):
                 }
             )
 
+        # Overall summary
+        summary = base_qs.aggregate(
+            total_invoices=Count("id"),
+            total_quantity=Coalesce(Sum("quantity"), Decimal("0.00")),
+            total_revenue=Coalesce(Sum("total_amount"), Decimal("0.00")),
+        )
+
         serializer = ProductRevenueSerializer(products, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "summary": {
+                    "total_invoices": summary["total_invoices"] or 0,
+                    "total_quantity": summary["total_quantity"] or Decimal("0.00"),
+                    "total_revenue": summary["total_revenue"] or Decimal("0.00"),
+                },
+                "products": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class ProductInvoicesView(APIView):
@@ -242,8 +315,9 @@ class SalespersonRevenueView(APIView):
             )
 
         # Aggregate revenue by salesperson
+        base_qs = Invoice.objects.filter(company=company)
         salesperson_data = (
-            Invoice.objects.filter(company=company, salesperson__isnull=False)
+            base_qs.filter(salesperson__isnull=False)
             .exclude(salesperson="")
             .values("salesperson")
             .annotate(
@@ -256,7 +330,7 @@ class SalespersonRevenueView(APIView):
         )
 
         # Calculate total revenue for share calculation
-        total_revenue = Invoice.objects.filter(company=company).aggregate(
+        total_revenue = base_qs.aggregate(
             total=Coalesce(Sum("total_amount"), Decimal("0.00"))
         )["total"] or Decimal("0.00")
 
@@ -294,9 +368,23 @@ class SalespersonRevenueView(APIView):
             else Decimal("0.00")
         )
 
+        # Overall summary
+        summary = base_qs.aggregate(
+            total_invoices_count=Count("id"),
+            total_customers_count=Count("customer_name", distinct=True),
+            total_revenue=Coalesce(Sum("total_amount"), Decimal("0.00")),
+            total_avg_deal=Coalesce(Avg("total_amount"), Decimal("0.00")),
+        )
+
         serializer = SalespersonRevenueSerializer(salespersons, many=True)
         return Response(
             {
+                "summary": {
+                    "total_invoices_count": summary["total_invoices_count"] or 0,
+                    "total_customers_count": summary["total_customers_count"] or 0,
+                    "total_revenue": summary["total_revenue"] or Decimal("0.00"),
+                    "total_avg_deal": summary["total_avg_deal"] or Decimal("0.00"),
+                },
                 "kpis": {
                     "total_salespersons": total_salespersons,
                     "top_performer": {
@@ -362,8 +450,9 @@ class ServiceRevenueView(APIView):
             )
 
         # Aggregate revenue by service type
+        base_qs = Invoice.objects.filter(company=company)
         service_data = (
-            Invoice.objects.filter(company=company, service_type__isnull=False)
+            base_qs.filter(service_type__isnull=False)
             .exclude(service_type="")
             .values("service_type")
             .annotate(
@@ -375,7 +464,7 @@ class ServiceRevenueView(APIView):
         )
 
         # Calculate total revenue for share calculation
-        total_revenue = Invoice.objects.filter(company=company).aggregate(
+        total_revenue = base_qs.aggregate(
             total=Coalesce(Sum("total_amount"), Decimal("0.00"))
         )["total"] or Decimal("0.00")
 
@@ -407,9 +496,21 @@ class ServiceRevenueView(APIView):
             else Decimal("0.00")
         )
 
+        # Overall summary
+        summary = base_qs.aggregate(
+            total_invoices_count=Count("id"),
+            total_customers_count=Count("customer_name", distinct=True),
+            total_revenue=Coalesce(Sum("total_amount"), Decimal("0.00")),
+        )
+
         serializer = ServiceRevenueSerializer(services, many=True)
         return Response(
             {
+                "summary": {
+                    "total_invoices_count": summary["total_invoices_count"] or 0,
+                    "total_customers_count": summary["total_customers_count"] or 0,
+                    "total_revenue": summary["total_revenue"] or Decimal("0.00"),
+                },
                 "kpis": {
                     "total_categories": total_categories,
                     "top_category": {
