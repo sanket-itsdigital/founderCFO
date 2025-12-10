@@ -10,6 +10,20 @@ from revenue.views.api.register import (
     ServiceInvoicesView,
 )
 from revenue.views.api.import_invoices import RevenueInvoiceImportView
+from revenue.views.api.analytics import (
+    TrendsYearOverYearView,
+    TrendsServiceKPIsView,
+    CustomersOverviewView,
+    CustomersCohortAnalysisView,
+    SalespersonOverviewView,
+    SalespersonPerformanceView,
+    ProductsOverviewView,
+    ProductsDetailsView,
+    BranchOverviewView,
+    BranchPerformanceView,
+    GeographicOverviewView,
+    GeographicDetailsView,
+)
 
 __all__ = [
     "AllInvoicesView",
@@ -22,4 +36,16 @@ __all__ = [
     "ServiceRevenueView",
     "ServiceInvoicesView",
     "RevenueInvoiceImportView",
+    "TrendsYearOverYearView",
+    "TrendsServiceKPIsView",
+    "CustomersOverviewView",
+    "CustomersCohortAnalysisView",
+    "SalespersonOverviewView",
+    "SalespersonPerformanceView",
+    "ProductsOverviewView",
+    "ProductsDetailsView",
+    "BranchOverviewView",
+    "BranchPerformanceView",
+    "GeographicOverviewView",
+    "GeographicDetailsView",
 ]
