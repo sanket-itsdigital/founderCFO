@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 
+from accounts.utils import get_user_company
 from dataroom.models import Question
 from dataroom.serializers import QuestionSerializer
 
@@ -10,13 +11,18 @@ class QuestionListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        """Restrict Q&A to the current user's company."""
         document_id = self.request.query_params.get("document_id")
-        company_id = self.request.query_params.get("company_id")
-        qs = Question.objects.all()
+        user_company = get_user_company(self.request.user)
+
+        # If user has no company, return empty queryset
+        if not user_company:
+            return Question.objects.none()
+
+        qs = Question.objects.filter(document__company=user_company)
         if document_id:
             qs = qs.filter(document_id=document_id)
-        if company_id:
-            qs = qs.filter(document__company_id=company_id)
+
         return qs.select_related("asked_by", "answer_by")
 
     def perform_create(self, serializer):
