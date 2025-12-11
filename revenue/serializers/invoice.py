@@ -1,20 +1,13 @@
 from rest_framework import serializers
 from revenue.models.invoice import Invoice
-from financial.enums import InvoicesStatusChoices
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
-    """Serializer for Invoice list and detail views (read-only for account receivable)"""
-
-    total_amount_display = serializers.SerializerMethodField()
-    status_display = serializers.CharField(source="get_status_display", read_only=True)
-    payment_terms_display = serializers.CharField(
-        source="get_payment_terms_display", read_only=True
-    )
+    """Serializer for Revenue Invoice"""
 
     class Meta:
         model = Invoice
-        ref_name = "FinancialInvoice"
+        ref_name = "RevenueInvoice"
         fields = [
             "id",
             "invoice_number",
@@ -36,11 +29,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "igst_rate",
             "igst_amount",
             "total_amount",
-            "total_amount_display",
             "status",
-            "status_display",
             "payment_terms",
-            "payment_terms_display",
             "salesperson",
             "region",
             "territory",
@@ -56,33 +46,58 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = [
-            "id",
-            "total_amount_display",
-            "status_display",
-            "payment_terms_display",
-            "created_at",
-            "updated_at",
-        ]
-
-    def get_total_amount_display(self, obj):
-        """Format total amount in lakhs (₹XX.XXL)"""
-        from decimal import Decimal
-
-        if obj.total_amount == 0:
-            return "₹0.00L"
-        lakhs = obj.total_amount / Decimal("100000")
-        return f"₹{lakhs.quantize(Decimal('0.01'))}L"
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class InvoiceCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating invoices - company is set automatically
-    Note: This is kept for backward compatibility but should use revenue app APIs
-    """
+    """Serializer for creating Revenue Invoice"""
 
     class Meta:
         model = Invoice
-        ref_name = "FinancialInvoiceCreate"
+        ref_name = "RevenueInvoiceCreate"
+        fields = [
+            "invoice_number",
+            "invoice_date",
+            "due_date",
+            "customer_name",
+            "customer_gstin",
+            "product_name",
+            "service_type",
+            "hsn_sac_code",
+            "place_of_supply",
+            "quantity",
+            "unit_price",
+            "taxable_value",
+            "cgst_rate",
+            "cgst_amount",
+            "sgst_rate",
+            "sgst_amount",
+            "igst_rate",
+            "igst_amount",
+            "total_amount",
+            "status",
+            "payment_terms",
+            "salesperson",
+            "region",
+            "territory",
+            "department",
+            "branch",
+            "branch_gstin",
+            "project_id",
+            "project_name",
+            "billing_type",
+            "billable_hours",
+            "is_recurring",
+            "notes",
+        ]
+
+
+class InvoiceUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating Revenue Invoice"""
+
+    class Meta:
+        model = Invoice
+        ref_name = "RevenueInvoiceUpdate"
         fields = [
             "invoice_number",
             "invoice_date",

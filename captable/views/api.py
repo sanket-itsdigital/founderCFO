@@ -44,10 +44,20 @@ class CompanyScopedMixin:
         user = getattr(self.request, "user", None)
         if not user or not user.is_authenticated:
             return {}
+        # Ensure user is not AnonymousUser
+        if hasattr(user, "is_anonymous") and user.is_anonymous:
+            return {}
         company_id = self.request.query_params.get("company_id")
         filters = {"company__owner": user}
         if company_id:
-            filters["company_id"] = company_id
+            try:
+                # Validate company_id is a valid UUID
+                import uuid
+
+                uuid.UUID(str(company_id))
+                filters["company_id"] = company_id
+            except (ValueError, TypeError):
+                pass  # Ignore invalid UUID
         return filters
 
 
@@ -354,7 +364,14 @@ class CapitalizationTableDetailView(
     serializer_class = CapitalizationTableSerializer
 
     def get_queryset(self):
+        # Handle Swagger schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return CapitalizationTable.objects.none()
+
         user = self.request.user
+        if not user.is_authenticated:
+            return CapitalizationTable.objects.none()
+
         company_id = self.request.query_params.get("company_id")
 
         # Build base filter

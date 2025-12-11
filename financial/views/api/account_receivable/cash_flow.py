@@ -10,21 +10,24 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Company
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 from financial.enums import InvoicesStatusChoices
-from financial.serializers.account_receivable.cash_flow import CashFlowProjectionResponseSerializer
+from financial.serializers.account_receivable.cash_flow import (
+    CashFlowProjectionResponseSerializer,
+)
 from financial.views.api.account_receivable.ar_aging import get_company_from_request
 
 
 class CashFlowProjectionView(APIView):
     """
     Get cash flow projection data with weekly/monthly projections.
-    
+
     Returns:
     - Summary: Next 30/60/90 days and total due amounts
     - Projections: Weekly or monthly projection data with due amounts and collection estimates
     - Risk Analysis: Collection assumptions, high-risk invoices, and expected collection rate
     """
+
     permission_classes = [IsAuthenticated]
 
     @staticmethod
@@ -55,7 +58,7 @@ class CashFlowProjectionView(APIView):
             expected = balance * Decimal("0.20")
             optimistic = balance * Decimal("0.30")
             conservative = balance * Decimal("0.10")
-        
+
         return expected, optimistic, conservative
 
     def get(self, request, *args, **kwargs):
@@ -86,16 +89,18 @@ class CashFlowProjectionView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        projection_type = request.query_params.get("type", "weekly")  # weekly or monthly
+        projection_type = request.query_params.get(
+            "type", "weekly"
+        )  # weekly or monthly
         today = timezone.now().date()
-        
+
         # Get all outstanding invoices (not paid or cancelled)
-        invoices = Invoice.objects.filter(
-            company=company
-        ).exclude(
-            status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
-        ).filter(
-            total_amount__gt=F("paid_amount")
+        invoices = (
+            Invoice.objects.filter(company=company)
+            .exclude(
+                status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
+            )
+            .filter(total_amount__gt=F("paid_amount"))
         )
 
         # Calculate summary amounts
@@ -111,7 +116,7 @@ class CashFlowProjectionView(APIView):
         for invoice in invoices:
             balance = invoice.balance_amount
             total_due += balance
-            
+
             if invoice.due_date <= next_30_days:
                 summary_30 += balance
             if invoice.due_date <= next_60_days:
@@ -121,123 +126,163 @@ class CashFlowProjectionView(APIView):
 
         # Generate projections
         projections = []
-        
+
         if projection_type == "weekly":
             # Weekly projections for next 12 weeks (~90 days)
             num_weeks = 12
-            
+
             # Initialize weekly buckets
             weekly_due = defaultdict(lambda: Decimal("0"))
             weekly_expected_collection = defaultdict(lambda: Decimal("0"))
             weekly_optimistic_collection = defaultdict(lambda: Decimal("0"))
             weekly_conservative_collection = defaultdict(lambda: Decimal("0"))
-            
+
             # Process each invoice
             for invoice in invoices:
                 balance = invoice.balance_amount
                 days_until_due = (invoice.due_date - today).days
-                
+
                 # Determine which week the invoice is due
                 due_week = days_until_due // 7
                 if 0 <= due_week < num_weeks:
                     weekly_due[due_week] += balance
-                    
+
                     # Project collections: 70% on-time (1 week after due), 20% delayed (2-3 weeks)
                     # On-time collection (70% of amount) in week after due
                     collection_week = due_week + 1
                     if collection_week < num_weeks:
-                        weekly_expected_collection[collection_week] += balance * Decimal("0.70")
-                        weekly_optimistic_collection[collection_week] += balance * Decimal("0.85")
-                        weekly_conservative_collection[collection_week] += balance * Decimal("0.60")
-                    
+                        weekly_expected_collection[
+                            collection_week
+                        ] += balance * Decimal("0.70")
+                        weekly_optimistic_collection[
+                            collection_week
+                        ] += balance * Decimal("0.85")
+                        weekly_conservative_collection[
+                            collection_week
+                        ] += balance * Decimal("0.60")
+
                     # Delayed collection (20% of amount) in 2-3 weeks after due
                     delayed_week = due_week + 2
                     if delayed_week < num_weeks:
-                        weekly_expected_collection[delayed_week] += balance * Decimal("0.20")
-                        weekly_optimistic_collection[delayed_week] += balance * Decimal("0.30")
-                        weekly_conservative_collection[delayed_week] += balance * Decimal("0.10")
-            
+                        weekly_expected_collection[delayed_week] += balance * Decimal(
+                            "0.20"
+                        )
+                        weekly_optimistic_collection[delayed_week] += balance * Decimal(
+                            "0.30"
+                        )
+                        weekly_conservative_collection[
+                            delayed_week
+                        ] += balance * Decimal("0.10")
+
             # Build projections array
             for week in range(num_weeks):
                 week_start = today + timedelta(weeks=week)
-                
+
                 due_amount = weekly_due.get(week, Decimal("0"))
                 expected_collection = weekly_expected_collection.get(week, Decimal("0"))
-                optimistic_collection = weekly_optimistic_collection.get(week, Decimal("0"))
-                conservative_collection = weekly_conservative_collection.get(week, Decimal("0"))
-                
+                optimistic_collection = weekly_optimistic_collection.get(
+                    week, Decimal("0")
+                )
+                conservative_collection = weekly_conservative_collection.get(
+                    week, Decimal("0")
+                )
+
                 # Format date display
                 date_display = week_start.strftime("%b %d")
-                
-                projections.append({
-                    "projection_date": week_start,
-                    "date_display": date_display,
-                    "due_amount": float(due_amount),
-                    "due_amount_display": self._in_lakhs(due_amount),
-                    "expected_collection": float(expected_collection),
-                    "expected_collection_display": self._in_lakhs(expected_collection),
-                    "optimistic_collection": float(optimistic_collection),
-                    "optimistic_collection_display": self._in_lakhs(optimistic_collection),
-                    "conservative_collection": float(conservative_collection),
-                    "conservative_collection_display": self._in_lakhs(conservative_collection),
-                })
+
+                projections.append(
+                    {
+                        "projection_date": week_start,
+                        "date_display": date_display,
+                        "due_amount": float(due_amount),
+                        "due_amount_display": self._in_lakhs(due_amount),
+                        "expected_collection": float(expected_collection),
+                        "expected_collection_display": self._in_lakhs(
+                            expected_collection
+                        ),
+                        "optimistic_collection": float(optimistic_collection),
+                        "optimistic_collection_display": self._in_lakhs(
+                            optimistic_collection
+                        ),
+                        "conservative_collection": float(conservative_collection),
+                        "conservative_collection_display": self._in_lakhs(
+                            conservative_collection
+                        ),
+                    }
+                )
         else:
             # Monthly projections for next 6 months
             num_months = 6
             for month in range(num_months):
                 month_start = today.replace(day=1) + timedelta(days=32 * month)
                 month_start = month_start.replace(day=1)
-                
+
                 # Calculate month end
                 if month_start.month == 12:
-                    month_end = month_start.replace(year=month_start.year + 1, month=1, day=1) - timedelta(days=1)
+                    month_end = month_start.replace(
+                        year=month_start.year + 1, month=1, day=1
+                    ) - timedelta(days=1)
                 else:
-                    month_end = month_start.replace(month=month_start.month + 1, day=1) - timedelta(days=1)
-                
+                    month_end = month_start.replace(
+                        month=month_start.month + 1, day=1
+                    ) - timedelta(days=1)
+
                 due_amount = Decimal("0")
                 expected_collection = Decimal("0")
                 optimistic_collection = Decimal("0")
                 conservative_collection = Decimal("0")
-                
+
                 # Calculate amounts for invoices due in this month
                 for invoice in invoices:
                     if month_start <= invoice.due_date <= month_end:
                         balance = invoice.balance_amount
                         due_amount += balance
-                        
+
                         days_until_due = (invoice.due_date - today).days
-                        expected, optimistic, conservative = self._calculate_collection_estimates(
-                            balance, days_until_due
+                        expected, optimistic, conservative = (
+                            self._calculate_collection_estimates(
+                                balance, days_until_due
+                            )
                         )
-                        
+
                         # Collections typically happen in the same month or next month
                         expected_collection += expected
                         optimistic_collection += optimistic
                         conservative_collection += conservative
-                
+
                 date_display = month_start.strftime("%b %Y")
-                
-                projections.append({
-                    "projection_date": month_start,
-                    "date_display": date_display,
-                    "due_amount": float(due_amount),
-                    "due_amount_display": self._in_lakhs(due_amount),
-                    "expected_collection": float(expected_collection),
-                    "expected_collection_display": self._in_lakhs(expected_collection),
-                    "optimistic_collection": float(optimistic_collection),
-                    "optimistic_collection_display": self._in_lakhs(optimistic_collection),
-                    "conservative_collection": float(conservative_collection),
-                    "conservative_collection_display": self._in_lakhs(conservative_collection),
-                })
+
+                projections.append(
+                    {
+                        "projection_date": month_start,
+                        "date_display": date_display,
+                        "due_amount": float(due_amount),
+                        "due_amount_display": self._in_lakhs(due_amount),
+                        "expected_collection": float(expected_collection),
+                        "expected_collection_display": self._in_lakhs(
+                            expected_collection
+                        ),
+                        "optimistic_collection": float(optimistic_collection),
+                        "optimistic_collection_display": self._in_lakhs(
+                            optimistic_collection
+                        ),
+                        "conservative_collection": float(conservative_collection),
+                        "conservative_collection_display": self._in_lakhs(
+                            conservative_collection
+                        ),
+                    }
+                )
 
         # Risk Analysis
         # High-risk invoices: 60+ days overdue
         high_risk_invoices = invoices.filter(
             due_date__lt=today - timedelta(days=60)
         ).count()
-        
+
         # Calculate expected collection rate
-        expected_collection_total = total_due * Decimal("0.70")  # 70% collection rate assumption
+        expected_collection_total = total_due * Decimal(
+            "0.70"
+        )  # 70% collection rate assumption
         collection_rate = (
             float((expected_collection_total / total_due * 100))
             if total_due > 0

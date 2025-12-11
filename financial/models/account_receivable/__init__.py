@@ -1,4 +1,4 @@
-from .account_receivable import Invoice
+# Invoice model has been moved to revenue app
+# from .account_receivable import Invoice
 
-__all__ = ["Invoice"]
-
+__all__ = []

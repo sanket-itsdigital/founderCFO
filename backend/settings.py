@@ -64,6 +64,7 @@ INHOUSE_APPS = [
     "financial",
     "sales",
     "hr",
+    "revenue",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + INHOUSE_APPS

@@ -28,6 +28,7 @@ class InvoicesStatusChoices(TextChoices):
     OVERDUE = "Overdue", "Overdue"
     CANCELLED = "Cancelled", "Cancelled"
     BAD_DEBT = "Bad Debt", "Bad Debt"
+    SENT = "Sent", "Sent"
 
 
 class PaymentStatusChoices(TextChoices):

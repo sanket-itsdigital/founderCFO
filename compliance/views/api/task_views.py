@@ -111,7 +111,6 @@ class ComplianceTaskListCreateView(generics.ListCreateAPIView):
         return queryset.order_by("-created_at")
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, updated_by=self.request.user)
         # Save the task instance
         task = serializer.save(
             created_by=self.request.user, updated_by=self.request.user

@@ -9,6 +9,7 @@ from financial.enums import RiskLevelChoices
 
 class Credit(BaseModel):
     """Customer credit limit and payment history"""
+
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
@@ -49,18 +50,21 @@ class Credit(BaseModel):
     @property
     def current_balance(self):
         """Calculate current outstanding balance from invoices"""
-        from financial.models.account_receivable import Invoice
+        from revenue.models.invoice import Invoice
         from financial.enums import InvoicesStatusChoices
         from django.db.models import Sum, F
 
         outstanding = Invoice.objects.filter(
-            company=self.company,
-            customer_name=self.customer_name
+            company=self.company, customer_name=self.customer_name
         ).exclude(
             status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
         ).aggregate(
-            total=Sum(F('total_amount') - F('paid_amount'))
-        )['total'] or Decimal("0.00")
+            total=Sum(F("total_amount") - F("paid_amount"))
+        )[
+            "total"
+        ] or Decimal(
+            "0.00"
+        )
 
         return outstanding
 
@@ -74,4 +78,3 @@ class Credit(BaseModel):
     def get_risk_level_display(self):
         """Get risk level display value"""
         return dict(RiskLevelChoices.choices).get(self.risk_level, self.risk_level)
-

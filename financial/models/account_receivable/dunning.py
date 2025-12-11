@@ -7,18 +7,19 @@ from django.utils import timezone
 from accounts.models import Company
 from backend.models import BaseModel
 from financial.enums import DunningStageChoices
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 
 
 class EmailTemplate(BaseModel):
     """Email templates for dunning and reminders"""
+
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
         related_name="email_templates",
         null=True,
         blank=True,
-        help_text="If null, template is available to all companies"
+        help_text="If null, template is available to all companies",
     )
     name = models.CharField(max_length=255)
     subject = models.CharField(max_length=500)
@@ -26,7 +27,7 @@ class EmailTemplate(BaseModel):
     template_type = models.CharField(
         max_length=50,
         default="reminder",
-        help_text="Type of template: reminder, dunning, etc."
+        help_text="Type of template: reminder, dunning, etc.",
     )
     is_active = models.BooleanField(default=True)
 
@@ -42,6 +43,7 @@ class EmailTemplate(BaseModel):
 
 class DunningQueue(BaseModel):
     """Queue of invoices that need dunning reminders"""
+
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
@@ -94,5 +96,4 @@ class DunningQueue(BaseModel):
         days_overdue = (today - self.invoice.due_date).days
         self.days_overdue = days_overdue
         self.stage = self.calculate_stage(days_overdue)
-        self.save(update_fields=['days_overdue', 'stage'])
-
+        self.save(update_fields=["days_overdue", "stage"])

@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Company
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 from financial.models.account_receivable.credit import Credit
 from financial.enums import InvoicesStatusChoices, RiskLevelChoices
 from financial.serializers.account_receivable.customer_balance import (
@@ -184,6 +184,7 @@ class CustomerBalanceDetailView(APIView):
     PUT/PATCH: Update customer credit information
     DELETE: Delete customer credit record
     """
+
     permission_classes = [IsAuthenticated]
 
     @staticmethod
@@ -197,13 +198,10 @@ class CustomerBalanceDetailView(APIView):
     def _get_customer_balance_data(self, company, customer_name):
         """Calculate customer balance data from invoices"""
         today = timezone.now().date()
-        
+
         # Get all outstanding invoices for this customer
         invoices = (
-            Invoice.objects.filter(
-                company=company,
-                customer_name=customer_name
-            )
+            Invoice.objects.filter(company=company, customer_name=customer_name)
             .exclude(
                 status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
             )
@@ -212,7 +210,7 @@ class CustomerBalanceDetailView(APIView):
 
         # Calculate outstanding amount
         outstanding = sum(invoice.balance_amount for invoice in invoices)
-        
+
         # Calculate average days outstanding
         avg_days = 0
         if invoices:
@@ -236,10 +234,7 @@ class CustomerBalanceDetailView(APIView):
 
         # Get or create credit record
         try:
-            credit = Credit.objects.get(
-                company=company,
-                customer_name=customer_name
-            )
+            credit = Credit.objects.get(company=company, customer_name=customer_name)
         except Credit.DoesNotExist:
             # Create default credit record
             credit = Credit.objects.create(
@@ -313,12 +308,14 @@ class CustomerBalanceDetailView(APIView):
 
         # Update fields
         if "credit_limit" in serializer.validated_data:
-            credit.credit_limit = Decimal(str(serializer.validated_data["credit_limit"]))
+            credit.credit_limit = Decimal(
+                str(serializer.validated_data["credit_limit"])
+            )
         if "payment_score" in serializer.validated_data:
             credit.payment_score = serializer.validated_data["payment_score"]
         if "risk_level" in serializer.validated_data:
             credit.risk_level = serializer.validated_data["risk_level"]
-        
+
         credit.updated_by = request.user if request.user.is_authenticated else None
         credit.save()
 
@@ -360,10 +357,7 @@ class CustomerBalanceDetailView(APIView):
             )
 
         try:
-            credit = Credit.objects.get(
-                company=company,
-                customer_name=customer_name
-            )
+            credit = Credit.objects.get(company=company, customer_name=customer_name)
             credit.delete()
             return Response(
                 {"message": f"Credit record for {customer_name} deleted successfully"},

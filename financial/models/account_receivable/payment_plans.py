@@ -11,11 +11,12 @@ from financial.enums import (
     PaymentFrequencyChoices,
     InstallmentStatusChoices,
 )
-from financial.models.account_receivable import Invoice
+from revenue.models.invoice import Invoice
 
 
 class PaymentPlan(BaseModel):
     """Payment plans for invoices"""
+
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
@@ -56,11 +57,9 @@ class PaymentPlan(BaseModel):
     @property
     def paid_amount(self):
         """Calculate total amount paid across all installments"""
-        return self.installments.filter(
-            status=InstallmentStatusChoices.PAID
-        ).aggregate(
-            total=models.Sum('amount')
-        )['total'] or Decimal("0.00")
+        return self.installments.filter(status=InstallmentStatusChoices.PAID).aggregate(
+            total=models.Sum("amount")
+        )["total"] or Decimal("0.00")
 
     @property
     def remaining_amount(self):
@@ -76,19 +75,19 @@ class PaymentPlan(BaseModel):
 
     def create_installments(self):
         """Create installments based on plan configuration"""
-        
+
         # Clear existing installments if any
         self.installments.all().delete()
-        
+
         installment_amount = self.total_amount / self.number_of_installments
         current_date = self.start_date
-        
+
         for i in range(1, self.number_of_installments + 1):
             # Calculate due date based on frequency
             if self.payment_frequency == PaymentFrequencyChoices.WEEKLY:
-                due_date = current_date + timedelta(weeks=i-1)
+                due_date = current_date + timedelta(weeks=i - 1)
             elif self.payment_frequency == PaymentFrequencyChoices.BI_WEEKLY:
-                due_date = current_date + timedelta(weeks=(i-1)*2)
+                due_date = current_date + timedelta(weeks=(i - 1) * 2)
             elif self.payment_frequency == PaymentFrequencyChoices.MONTHLY:
                 # Add months manually - handle month overflow
                 month = current_date.month + (i - 1)
@@ -100,8 +99,11 @@ class PaymentPlan(BaseModel):
                 except ValueError:
                     # If day doesn't exist in target month, use last day of month
                     from calendar import monthrange
+
                     last_day = monthrange(year, month)[1]
-                    due_date = current_date.replace(year=year, month=month, day=min(current_date.day, last_day))
+                    due_date = current_date.replace(
+                        year=year, month=month, day=min(current_date.day, last_day)
+                    )
             elif self.payment_frequency == PaymentFrequencyChoices.QUARTERLY:
                 # Add quarters (3 months)
                 month = current_date.month + (i - 1) * 3
@@ -111,24 +113,32 @@ class PaymentPlan(BaseModel):
                     due_date = current_date.replace(year=year, month=month)
                 except ValueError:
                     from calendar import monthrange
+
                     last_day = monthrange(year, month)[1]
-                    due_date = current_date.replace(year=year, month=month, day=min(current_date.day, last_day))
+                    due_date = current_date.replace(
+                        year=year, month=month, day=min(current_date.day, last_day)
+                    )
             else:  # ANNUALLY
                 try:
                     due_date = current_date.replace(year=current_date.year + (i - 1))
                 except ValueError:
                     # Handle leap year edge case (Feb 29)
                     from calendar import monthrange
+
                     year = current_date.year + (i - 1)
                     last_day = monthrange(year, 2)[1]
-                    due_date = current_date.replace(year=year, day=min(current_date.day, last_day))
-            
+                    due_date = current_date.replace(
+                        year=year, day=min(current_date.day, last_day)
+                    )
+
             # For last installment, add any rounding difference
             if i == self.number_of_installments:
-                amount = self.total_amount - (installment_amount * (self.number_of_installments - 1))
+                amount = self.total_amount - (
+                    installment_amount * (self.number_of_installments - 1)
+                )
             else:
                 amount = installment_amount
-            
+
             PaymentPlanInstallment.objects.create(
                 payment_plan=self,
                 installment_number=i,
@@ -139,13 +149,17 @@ class PaymentPlan(BaseModel):
 
     def mark_as_completed(self):
         """Mark plan as completed if all installments are paid"""
-        if self.installments.filter(status=InstallmentStatusChoices.PAID).count() == self.number_of_installments:
+        if (
+            self.installments.filter(status=InstallmentStatusChoices.PAID).count()
+            == self.number_of_installments
+        ):
             self.status = PaymentPlanStatusChoices.COMPLETED
-            self.save(update_fields=['status'])
+            self.save(update_fields=["status"])
 
 
 class PaymentPlanInstallment(BaseModel):
     """Individual installments for payment plans"""
+
     payment_plan = models.ForeignKey(
         PaymentPlan,
         on_delete=models.CASCADE,
@@ -179,15 +193,17 @@ class PaymentPlanInstallment(BaseModel):
     @property
     def is_overdue(self):
         """Check if installment is overdue"""
-        return self.due_date < timezone.now().date() and self.status == InstallmentStatusChoices.PENDING
+        return (
+            self.due_date < timezone.now().date()
+            and self.status == InstallmentStatusChoices.PENDING
+        )
 
     def mark_as_paid(self, payment_reference=""):
         """Mark installment as paid"""
         self.status = InstallmentStatusChoices.PAID
         self.paid_at = timezone.now()
         self.payment_reference = payment_reference
-        self.save(update_fields=['status', 'paid_at', 'payment_reference'])
-        
+        self.save(update_fields=["status", "paid_at", "payment_reference"])
+
         # Check if plan should be marked as completed
         self.payment_plan.mark_as_completed()
-
