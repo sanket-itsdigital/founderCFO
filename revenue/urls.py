@@ -13,18 +13,12 @@ from revenue.views.api.register import (
 )
 from revenue.views.api.import_invoices import RevenueInvoiceImportView
 from revenue.views.api.analytics import (
-    TrendsYearOverYearView,
-    TrendsServiceKPIsView,
-    CustomersOverviewView,
-    CustomersCohortAnalysisView,
-    SalespersonOverviewView,
-    SalespersonPerformanceView,
-    ProductsOverviewView,
-    ProductsDetailsView,
-    BranchOverviewView,
-    BranchPerformanceView,
-    GeographicOverviewView,
-    GeographicDetailsView,
+    TrendsView,
+    CustomersView,
+    SalespersonView,
+    ProductsView,
+    BranchView,
+    GeographicView,
     GSTOverviewView,
     RevenueDashboardView,
 )
@@ -92,71 +86,41 @@ urlpatterns = [
         ServiceInvoicesView.as_view(),
         name="service-invoices",
     ),
-    # Analytics Section - Trends
+    # Analytics Section - Trends (Merged)
     path(
-        "analytics/trends/year-over-year/",
-        TrendsYearOverYearView.as_view(),
-        name="trends-year-over-year",
+        "analytics/trends/",
+        TrendsView.as_view(),
+        name="trends",
     ),
+    # Analytics Section - Customers (Merged)
     path(
-        "analytics/trends/service-kpis/",
-        TrendsServiceKPIsView.as_view(),
-        name="trends-service-kpis",
+        "analytics/customers/",
+        CustomersView.as_view(),
+        name="customers",
     ),
-    # Analytics Section - Customers
+    # Analytics Section - Salesperson (Merged)
     path(
-        "analytics/customers/overview/",
-        CustomersOverviewView.as_view(),
-        name="customers-overview",
+        "analytics/salesperson/",
+        SalespersonView.as_view(),
+        name="salesperson",
     ),
+    # Analytics Section - Products (Merged)
     path(
-        "analytics/customers/cohort-analysis/",
-        CustomersCohortAnalysisView.as_view(),
-        name="customers-cohort-analysis",
+        "analytics/products/",
+        ProductsView.as_view(),
+        name="products",
     ),
-    # Analytics Section - Salesperson
+    # Analytics Section - Branch (Merged)
     path(
-        "analytics/salesperson/overview/",
-        SalespersonOverviewView.as_view(),
-        name="salesperson-overview",
+        "analytics/branch/",
+        BranchView.as_view(),
+        name="branch",
     ),
+    # Analytics Section - Geographic (Merged)
     path(
-        "analytics/salesperson/performance/",
-        SalespersonPerformanceView.as_view(),
-        name="salesperson-performance",
-    ),
-    # Analytics Section - Products
-    path(
-        "analytics/products/overview/",
-        ProductsOverviewView.as_view(),
-        name="products-overview",
-    ),
-    path(
-        "analytics/products/details/",
-        ProductsDetailsView.as_view(),
-        name="products-details",
-    ),
-    # Analytics Section - Branch
-    path(
-        "analytics/branch/overview/",
-        BranchOverviewView.as_view(),
-        name="branch-overview",
-    ),
-    path(
-        "analytics/branch/performance/",
-        BranchPerformanceView.as_view(),
-        name="branch-performance",
-    ),
-    # Analytics Section - Geographic
-    path(
-        "analytics/geographic/overview/",
-        GeographicOverviewView.as_view(),
-        name="geographic-overview",
-    ),
-    path(
-        "analytics/geographic/details/",
-        GeographicDetailsView.as_view(),
-        name="geographic-details",
+        "analytics/geographic/",
+        GeographicView.as_view(),
+        name="geographic",
     ),
     # Analytics Section - GST
     path(
