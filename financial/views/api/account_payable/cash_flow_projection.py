@@ -23,7 +23,9 @@ class APCashFlowProjectionView(APIView):
 
     Returns:
     - Summary: Next 7/30/90 days projected outflows
-    - Projections: Daily projection data with due amounts and cumulative amounts
+    - Projections: Daily projection data with due amounts (for line chart) and cumulative amounts (for area chart)
+
+    All data comes from the Bill model (expenses.bills).
     """
 
     permission_classes = [IsAuthenticated]
@@ -44,8 +46,16 @@ class APCashFlowProjectionView(APIView):
         crores = amount / Decimal("10000000")
         return f"₹{crores.quantize(Decimal('0.01'))}Cr"
 
+    @staticmethod
+    def _format_amount_display(amount: Decimal) -> str:
+        """Format amount as L or Cr based on value"""
+        if amount >= Decimal("10000000"):  # 1 Crore
+            return APCashFlowProjectionView._in_crores(amount)
+        else:
+            return APCashFlowProjectionView._in_lakhs(amount)
+
     def get(self, request, *args, **kwargs):
-        """Calculate and return AP cash flow projection data"""
+        """Calculate and return AP cash flow projection data - all from Bill model"""
         company = get_company_from_request(request)
         if not company:
             return Response(
@@ -65,11 +75,12 @@ class APCashFlowProjectionView(APIView):
 
         today = timezone.now().date()
 
-        # Get all outstanding bills (not fully paid or cancelled)
+        # Get all outstanding bills from Bill model (not fully paid or cancelled)
         bills = (
             Bill.objects.filter(company=company)
             .exclude(status__in=[BillsStatusChoices.PAID, BillsStatusChoices.CANCELLED])
-            .filter(amount__gt=F("paid_amount"))
+            .filter(total__gt=F("paid_amount"))  # Use total instead of amount
+            .select_related("vendor")
         )
 
         # Calculate summary amounts
@@ -85,10 +96,14 @@ class APCashFlowProjectionView(APIView):
         daily_due = defaultdict(lambda: Decimal("0"))
 
         for bill in bills:
-            balance = bill.balance_amount
+            # Get balance from Bill model
+            balance = bill.balance_amount  # Uses total - paid_amount
             due_date = bill.due_date
 
-            # Add to summary buckets
+            if not due_date:
+                continue
+
+            # Add to summary buckets (bills due on or before the date)
             if due_date <= next_7_days:
                 summary_7 += balance
             if due_date <= next_30_days:
@@ -96,7 +111,7 @@ class APCashFlowProjectionView(APIView):
             if due_date <= next_90_days:
                 summary_90 += balance
 
-            # Add to daily due amounts
+            # Add to daily due amounts (only future dates within projection window)
             if due_date >= today and due_date <= next_90_days:
                 daily_due[due_date] += balance
 
@@ -111,7 +126,7 @@ class APCashFlowProjectionView(APIView):
             due_amount = daily_due.get(current_date, Decimal("0"))
             cumulative += due_amount
 
-            # Format date display
+            # Format date display: "Dec 12", "Jan 11", etc.
             date_display = current_date.strftime("%b %d")
 
             projections.append(
@@ -120,13 +135,13 @@ class APCashFlowProjectionView(APIView):
                     "date_display": date_display,
                     "due_amount": float(due_amount),
                     "due_amount_display": (
-                        self._in_lakhs(due_amount) if due_amount > 0 else "₹0.00L"
+                        self._format_amount_display(due_amount)
+                        if due_amount > 0
+                        else "₹0"
                     ),
                     "cumulative_amount": float(cumulative),
-                    "cumulative_amount_display": (
-                        self._in_lakhs(cumulative)
-                        if cumulative < Decimal("10000000")
-                        else self._in_crores(cumulative)
+                    "cumulative_amount_display": self._format_amount_display(
+                        cumulative
                     ),
                 }
             )
@@ -136,11 +151,11 @@ class APCashFlowProjectionView(APIView):
         response_data = {
             "summary": {
                 "next_7_days": float(summary_7),
-                "next_7_days_display": self._in_lakhs(summary_7),
+                "next_7_days_display": self._format_amount_display(summary_7),
                 "next_30_days": float(summary_30),
-                "next_30_days_display": self._in_lakhs(summary_30),
+                "next_30_days_display": self._format_amount_display(summary_30),
                 "next_90_days": float(summary_90),
-                "next_90_days_display": self._in_lakhs(summary_90),
+                "next_90_days_display": self._format_amount_display(summary_90),
             },
             "projections": projections,
         }
