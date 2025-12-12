@@ -9,7 +9,11 @@ from financial.views.api import (
     CustomerBalanceDetailView,
     CustomerSegmentsView,
     CollectionPriorityView,
-    APAgeingSummaryView,
+    APAgeingOverviewView,
+    APAgeingByVendorView,
+    APAgeingByCategoryView,
+    APAgeingByStatusView,
+    BillImportView,
     VendorBalanceSummaryView,
     PaymentPriorityQueueView,
     PaymentSchedulerView,
@@ -87,11 +91,31 @@ urlpatterns = [
         CashFlowProjectionView.as_view(),
         name="cash-flow-projection",
     ),
-    # Accounts Payable
+    # Accounts Payable - Ageing Analysis
     path(
-        "payable/ap-ageing-summary/",
-        APAgeingSummaryView.as_view(),
-        name="ap-ageing-summary",
+        "payable/ap-ageing-summary/overview/",
+        APAgeingOverviewView.as_view(),
+        name="ap-ageing-overview",
+    ),
+    path(
+        "payable/ap-ageing-summary/vendor/",
+        APAgeingByVendorView.as_view(),
+        name="ap-ageing-by-vendor",
+    ),
+    path(
+        "payable/ap-ageing-summary/category/",
+        APAgeingByCategoryView.as_view(),
+        name="ap-ageing-by-category",
+    ),
+    path(
+        "payable/ap-ageing-summary/status/",
+        APAgeingByStatusView.as_view(),
+        name="ap-ageing-by-status",
+    ),
+    path(
+        "payable/bills/import/",
+        BillImportView.as_view(),
+        name="bill-import",
     ),
     path(
         "payable/vendors/balance-summary/",

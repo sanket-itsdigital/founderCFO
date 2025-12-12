@@ -1,5 +1,8 @@
 from financial.views.api.account_payable.ap_aging import (
-    APAgeingSummaryView,
+    APAgeingOverviewView,
+    APAgeingByVendorView,
+    APAgeingByCategoryView,
+    APAgeingByStatusView,
     get_company_from_request,
 )
 from financial.views.api.account_payable.vendor_balance import VendorBalanceSummaryView
@@ -13,9 +16,13 @@ from financial.views.api.account_payable.cash_flow_projection import (
 )
 from financial.views.api.account_payable.analytics import APAnalyticsView
 from financial.views.api.account_payable.ap_dashboard import APDashboardView
+from financial.views.api.account_payable.import_bills import BillImportView
 
 __all__ = [
-    "APAgeingSummaryView",
+    "APAgeingOverviewView",
+    "APAgeingByVendorView",
+    "APAgeingByCategoryView",
+    "APAgeingByStatusView",
     "VendorBalanceSummaryView",
     "PaymentPriorityQueueView",
     "PaymentSchedulerView",
@@ -23,5 +30,6 @@ __all__ = [
     "APCashFlowProjectionView",
     "APAnalyticsView",
     "APDashboardView",
+    "BillImportView",
     "get_company_from_request",
 ]
