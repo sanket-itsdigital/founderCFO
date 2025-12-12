@@ -26,6 +26,8 @@ class PaymentSchedulerView(APIView):
     - Due Next Week
     - Upcoming
     - Selected for Payment (empty initially, managed by frontend)
+
+    All data comes from the Bill model (expenses.bills).
     """
 
     permission_classes = [IsAuthenticated]
@@ -34,7 +36,7 @@ class PaymentSchedulerView(APIView):
     def _in_lakhs(amount: Decimal) -> str:
         """Convert amount to lakhs format (₹XX.XXL)"""
         if amount == 0:
-            return "₹0.00L"
+            return "₹0"
         lakhs = amount / Decimal("100000")
         return f"₹{lakhs.quantize(Decimal('0.01'))}L"
 
@@ -42,7 +44,7 @@ class PaymentSchedulerView(APIView):
     def _in_thousands(amount: Decimal) -> str:
         """Convert amount to thousands format (₹XX.XXK)"""
         if amount == 0:
-            return "₹0.00K"
+            return "₹0"
         thousands = amount / Decimal("1000")
         return f"₹{thousands.quantize(Decimal('0.01'))}K"
 
@@ -56,20 +58,23 @@ class PaymentSchedulerView(APIView):
 
     @staticmethod
     def _format_date(date_value):
-        """Format date as DD Mon YYYY"""
+        """Format date as DD-Mon-YYYY (e.g., 14-Oct-2025)"""
         if not date_value:
             return "-"
-        return date_value.strftime("%d %b %Y")
+        return date_value.strftime("%d-%b-%Y")
 
     @staticmethod
     def _calculate_discount(bill, today):
-        """Calculate early payment discount"""
+        """Calculate early payment discount based on bill data"""
+        if not bill.bill_date or not bill.due_date:
+            return None, Decimal("0")
+
         # If bill is not overdue and within discount window
         if bill.due_date >= today:
             days_until_due = (bill.due_date - today).days
             days_since_bill = (today - bill.bill_date).days
 
-            # Example: 2-3% discount if paid within 10 days of bill date
+            # 2-3% discount if paid within 10 days of bill date
             if days_since_bill <= 10 and days_until_due > 0:
                 discount_pct = Decimal("2.0")  # 2% discount
                 discount_amt = bill.balance_amount * (discount_pct / Decimal("100"))
@@ -94,7 +99,7 @@ class PaymentSchedulerView(APIView):
             return "Upcoming"
 
     def _categorize_bills(self, bills, today):
-        """Categorize bills into groups"""
+        """Categorize bills into groups - all data from Bill model"""
         overdue = []
         due_this_week = []
         due_next_week = []
@@ -105,19 +110,27 @@ class PaymentSchedulerView(APIView):
         end_of_next_week = end_of_this_week + timedelta(days=7)
 
         for bill in bills:
-            balance = bill.balance_amount
+            # Get balance from Bill model
+            balance = bill.balance_amount  # Uses total - paid_amount
             if balance <= 0:
                 continue
 
-            days_overdue = (today - bill.due_date).days if bill.due_date < today else 0
+            # Calculate days from Bill model's due_date
+            days_overdue = (
+                (today - bill.due_date).days
+                if bill.due_date and bill.due_date < today
+                else 0
+            )
             days_until_due = (
-                (bill.due_date - today).days if bill.due_date >= today else 0
+                (bill.due_date - today).days
+                if bill.due_date and bill.due_date >= today
+                else 0
             )
 
-            # Calculate discount
+            # Calculate discount using bill data
             discount_pct, discount_amt = self._calculate_discount(bill, today)
 
-            # Format days display
+            # Format days display - match image format: "X overdue"
             if days_overdue > 0:
                 days_display = f"{days_overdue} overdue"
             elif days_until_due == 0:
@@ -127,11 +140,14 @@ class PaymentSchedulerView(APIView):
             else:
                 days_display = f"{days_until_due} days"
 
+            # Get vendor name from Bill model
+            vendor_name = bill.get_vendor_name()
+
             bill_data = {
                 "bill_id": str(bill.id),
                 "bill_number": bill.bill_number,
                 "vendor_id": str(bill.vendor.id) if bill.vendor else None,
-                "vendor_name": bill.get_vendor_name(),
+                "vendor_name": vendor_name,
                 "due_date": bill.due_date,
                 "due_date_display": self._format_date(bill.due_date),
                 "days_overdue": days_overdue,
@@ -141,21 +157,17 @@ class PaymentSchedulerView(APIView):
                 "amount_display": self._format_amount_display(balance),
                 "discount_percentage": float(discount_pct) if discount_pct else None,
                 "discount_amount": float(discount_amt) if discount_amt else None,
-                "discount_display": (
-                    f"Save {self._format_amount_display(discount_amt)}"
-                    if discount_amt > 0
-                    else "-"
-                ),
+                "discount_display": (f"{int(discount_pct)}%" if discount_pct else "-"),
                 "status": self._get_status_label(bill, days_overdue, days_until_due),
                 "is_selected": False,  # Frontend will manage selection
             }
 
-            # Categorize
+            # Categorize based on due_date from Bill model
             if days_overdue > 0:
                 overdue.append(bill_data)
-            elif bill.due_date <= end_of_this_week:
+            elif bill.due_date and bill.due_date <= end_of_this_week:
                 due_this_week.append(bill_data)
-            elif bill.due_date <= end_of_next_week:
+            elif bill.due_date and bill.due_date <= end_of_next_week:
                 due_next_week.append(bill_data)
             else:
                 upcoming.append(bill_data)
@@ -184,7 +196,7 @@ class PaymentSchedulerView(APIView):
         }
 
     def get(self, request, *args, **kwargs):
-        """Get payment scheduler data"""
+        """Get payment scheduler data - all from Bill model"""
         company = get_company_from_request(request)
         if not company:
             return Response(
@@ -193,23 +205,30 @@ class PaymentSchedulerView(APIView):
                         {
                             "title": "Overdue",
                             "amount": 0.0,
-                            "amount_display": "₹0.00L",
+                            "amount_display": "₹0",
                             "bill_count": 0,
                             "icon": "overdue",
                         },
                         {
                             "title": "Due This Week",
                             "amount": 0.0,
-                            "amount_display": "₹0.00L",
+                            "amount_display": "₹0",
                             "bill_count": 0,
                             "icon": "due_this_week",
                         },
                         {
                             "title": "Due Next Week",
                             "amount": 0.0,
-                            "amount_display": "₹0.00L",
+                            "amount_display": "₹0",
                             "bill_count": 0,
                             "icon": "due_next_week",
+                        },
+                        {
+                            "title": "Selected for Payment",
+                            "amount": 0.0,
+                            "amount_display": "₹0",
+                            "bill_count": 0,
+                            "icon": "selected",
                         },
                     ],
                     "overdue": self._create_group("Overdue", []),
@@ -225,11 +244,11 @@ class PaymentSchedulerView(APIView):
 
         today = timezone.now().date()
 
-        # Get all unpaid bills (not fully paid or cancelled)
+        # Get all unpaid bills from Bill model (not fully paid or cancelled)
         bills = (
             Bill.objects.filter(company=company)
             .exclude(status__in=[BillsStatusChoices.PAID, BillsStatusChoices.CANCELLED])
-            .filter(amount__gt=F("paid_amount"))
+            .filter(total__gt=F("paid_amount"))  # Use total instead of amount
             .select_related("vendor")
             .order_by("due_date")
         )
@@ -276,6 +295,13 @@ class PaymentSchedulerView(APIView):
                 "amount_display": due_next_week_group["total_amount_display"],
                 "bill_count": due_next_week_group["bill_count"],
                 "icon": "due_next_week",
+            },
+            {
+                "title": "Selected for Payment",
+                "amount": selected_group["total_amount"],
+                "amount_display": selected_group["total_amount_display"],
+                "bill_count": selected_group["bill_count"],
+                "icon": "selected",
             },
         ]
 
