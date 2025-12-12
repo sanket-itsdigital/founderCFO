@@ -8,16 +8,18 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from financial.models.account_payable.bills import Bill
+from financial.models.expenses.bills import Bill
 from financial.enums import BillsStatusChoices
-from financial.serializers.account_payable.payment_scheduler import PaymentSchedulerSerializer
+from financial.serializers.account_payable.payment_scheduler import (
+    PaymentSchedulerSerializer,
+)
 from financial.views.api.account_payable.ap_aging import get_company_from_request
 
 
 class PaymentSchedulerView(APIView):
     """
     API view to get Payment Scheduler data.
-    
+
     Returns bills grouped by:
     - Overdue
     - Due This Week
@@ -66,7 +68,7 @@ class PaymentSchedulerView(APIView):
         if bill.due_date >= today:
             days_until_due = (bill.due_date - today).days
             days_since_bill = (today - bill.bill_date).days
-            
+
             # Example: 2-3% discount if paid within 10 days of bill date
             if days_since_bill <= 10 and days_until_due > 0:
                 discount_pct = Decimal("2.0")  # 2% discount
@@ -76,7 +78,7 @@ class PaymentSchedulerView(APIView):
                 discount_pct = Decimal("1.0")  # 1% discount
                 discount_amt = bill.balance_amount * (discount_pct / Decimal("100"))
                 return discount_pct, discount_amt
-        
+
         return None, Decimal("0")
 
     @staticmethod
@@ -97,22 +99,24 @@ class PaymentSchedulerView(APIView):
         due_this_week = []
         due_next_week = []
         upcoming = []
-        
+
         # Calculate week boundaries
         end_of_this_week = today + timedelta(days=(6 - today.weekday()))
         end_of_next_week = end_of_this_week + timedelta(days=7)
-        
+
         for bill in bills:
             balance = bill.balance_amount
             if balance <= 0:
                 continue
-            
+
             days_overdue = (today - bill.due_date).days if bill.due_date < today else 0
-            days_until_due = (bill.due_date - today).days if bill.due_date >= today else 0
-            
+            days_until_due = (
+                (bill.due_date - today).days if bill.due_date >= today else 0
+            )
+
             # Calculate discount
             discount_pct, discount_amt = self._calculate_discount(bill, today)
-            
+
             # Format days display
             if days_overdue > 0:
                 days_display = f"{days_overdue} overdue"
@@ -122,7 +126,7 @@ class PaymentSchedulerView(APIView):
                 days_display = "Due tomorrow"
             else:
                 days_display = f"{days_until_due} days"
-            
+
             bill_data = {
                 "bill_id": str(bill.id),
                 "bill_number": bill.bill_number,
@@ -137,11 +141,15 @@ class PaymentSchedulerView(APIView):
                 "amount_display": self._format_amount_display(balance),
                 "discount_percentage": float(discount_pct) if discount_pct else None,
                 "discount_amount": float(discount_amt) if discount_amt else None,
-                "discount_display": f"Save {self._format_amount_display(discount_amt)}" if discount_amt > 0 else "-",
+                "discount_display": (
+                    f"Save {self._format_amount_display(discount_amt)}"
+                    if discount_amt > 0
+                    else "-"
+                ),
                 "status": self._get_status_label(bill, days_overdue, days_until_due),
                 "is_selected": False,  # Frontend will manage selection
             }
-            
+
             # Categorize
             if days_overdue > 0:
                 overdue.append(bill_data)
@@ -151,21 +159,27 @@ class PaymentSchedulerView(APIView):
                 due_next_week.append(bill_data)
             else:
                 upcoming.append(bill_data)
-        
+
         return overdue, due_this_week, due_next_week, upcoming
 
     def _create_group(self, group_name, bills_list):
         """Create a group object with summary"""
         total_amount = sum(Decimal(str(b["amount"])) for b in bills_list)
-        total_discount = sum(Decimal(str(b.get("discount_amount", 0) or 0)) for b in bills_list)
-        
+        total_discount = sum(
+            Decimal(str(b.get("discount_amount", 0) or 0)) for b in bills_list
+        )
+
         return {
             "group_name": group_name,
             "bill_count": len(bills_list),
             "total_amount": float(total_amount),
             "total_amount_display": self._in_lakhs(total_amount),
             "potential_discount": float(total_discount) if total_discount > 0 else None,
-            "potential_discount_display": self._format_amount_display(total_discount) if total_discount > 0 else None,
+            "potential_discount_display": (
+                self._format_amount_display(total_discount)
+                if total_discount > 0
+                else None
+            ),
             "bills": bills_list,
         }
 
@@ -202,7 +216,9 @@ class PaymentSchedulerView(APIView):
                     "due_this_week": self._create_group("Due This Week", []),
                     "due_next_week": self._create_group("Due Next Week", []),
                     "upcoming": self._create_group("Upcoming", []),
-                    "selected_for_payment": self._create_group("Selected for Payment", []),
+                    "selected_for_payment": self._create_group(
+                        "Selected for Payment", []
+                    ),
                 },
                 status=status.HTTP_200_OK,
             )
@@ -219,11 +235,13 @@ class PaymentSchedulerView(APIView):
         )
 
         # Categorize bills
-        overdue, due_this_week, due_next_week, upcoming = self._categorize_bills(bills, today)
+        overdue, due_this_week, due_next_week, upcoming = self._categorize_bills(
+            bills, today
+        )
 
         # Sort overdue by days overdue (descending)
         overdue.sort(key=lambda x: x["days_overdue"], reverse=True)
-        
+
         # Sort others by due date (ascending)
         due_this_week.sort(key=lambda x: x["due_date"])
         due_next_week.sort(key=lambda x: x["due_date"])
@@ -274,4 +292,3 @@ class PaymentSchedulerView(APIView):
         serializer.is_valid(raise_exception=True)
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
-

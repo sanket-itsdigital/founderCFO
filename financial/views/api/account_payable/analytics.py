@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from financial.models.account_payable.bills import Bill
+from financial.models.expenses.bills import Bill
 from financial.models.account_payable.payment import BillPayment, PaymentMethodChoices
 from financial.enums import BillsStatusChoices
 from financial.serializers.account_payable.analytics import APAnalyticsSerializer
@@ -20,7 +20,7 @@ from financial.views.api.account_payable.ap_aging import get_company_from_reques
 class APAnalyticsView(APIView):
     """
     Get all analytics data for AP reports.
-    
+
     Returns:
     - Spending by Category: Pie chart data
     - Monthly Trend: Billed vs Paid over last 6 months
@@ -49,7 +49,7 @@ class APAnalyticsView(APIView):
     def _calculate_spending_by_category(self, all_bills):
         """Calculate spending by category"""
         category_totals = defaultdict(Decimal)
-        
+
         # Color mapping for categories
         category_colors = {
             "Office Supplies": "#3B82F6",  # Blue
@@ -66,96 +66,112 @@ class APAnalyticsView(APIView):
             "IT Consulting": "#DC2626",  # Dark Red
             "Cloud Services": "#1E40AF",  # Dark Blue
         }
-        
+
         for bill in all_bills:
             category = bill.category or "Other"
             amount = bill.amount
             category_totals[category] += amount
-        
+
         # Calculate total for percentage
         total_spending = sum(category_totals.values())
-        
+
         result = []
-        for category, amount in sorted(category_totals.items(), key=lambda x: x[1], reverse=True):
-            percentage = float((amount / total_spending * 100)) if total_spending > 0 else 0.0
-            result.append({
-                "category": category,
-                "amount": float(amount),
-                "amount_display": self._in_lakhs(amount),
-                "percentage": round(percentage, 1),
-                "color": category_colors.get(category, "#6B7280"),  # Default gray
-            })
-        
+        for category, amount in sorted(
+            category_totals.items(), key=lambda x: x[1], reverse=True
+        ):
+            percentage = (
+                float((amount / total_spending * 100)) if total_spending > 0 else 0.0
+            )
+            result.append(
+                {
+                    "category": category,
+                    "amount": float(amount),
+                    "amount_display": self._in_lakhs(amount),
+                    "percentage": round(percentage, 1),
+                    "color": category_colors.get(category, "#6B7280"),  # Default gray
+                }
+            )
+
         return result
 
     def _calculate_monthly_trend(self, all_bills, paid_payments):
         """Calculate monthly trend for billed vs paid"""
         today = timezone.now().date()
         trend_data = []
-        
+
         # Get last 6 months
         for i in range(5, -1, -1):  # Last 6 months
             month_date = today.replace(day=1) - timedelta(days=30 * i)
             month_start = month_date.replace(day=1)
-            
+
             # Calculate month end
             if month_start.month == 12:
-                month_end = month_start.replace(year=month_start.year + 1, month=1, day=1) - timedelta(days=1)
+                month_end = month_start.replace(
+                    year=month_start.year + 1, month=1, day=1
+                ) - timedelta(days=1)
             else:
-                month_end = month_start.replace(month=month_start.month + 1, day=1) - timedelta(days=1)
-            
+                month_end = month_start.replace(
+                    month=month_start.month + 1, day=1
+                ) - timedelta(days=1)
+
             # Calculate billed amount (bills created in this month)
             billed = Decimal("0")
             for bill in all_bills:
                 if month_start <= bill.bill_date <= month_end:
                     billed += bill.amount
-            
+
             # Calculate paid amount (payments made in this month)
             paid = Decimal("0")
             for payment in paid_payments:
                 if month_start <= payment.payment_date <= month_end:
                     paid += payment.amount
-            
+
             month_display = month_start.strftime("%b %Y")
             month_short = month_start.strftime("%b")
-            
-            trend_data.append({
-                "month": month_start.strftime("%Y-%m"),
-                "month_display": month_display,
-                "billed": float(billed),
-                "billed_display": self._in_lakhs(billed),
-                "paid": float(paid),
-                "paid_display": self._in_lakhs(paid),
-            })
-        
+
+            trend_data.append(
+                {
+                    "month": month_start.strftime("%Y-%m"),
+                    "month_display": month_display,
+                    "billed": float(billed),
+                    "billed_display": self._in_lakhs(billed),
+                    "paid": float(paid),
+                    "paid_display": self._in_lakhs(paid),
+                }
+            )
+
         return trend_data
 
     def _calculate_top_vendors(self, all_bills):
         """Calculate top 5 vendors by spending"""
         vendor_totals = defaultdict(Decimal)
-        
+
         for bill in all_bills:
             vendor_name = bill.get_vendor_name()
             amount = bill.amount
             vendor_totals[vendor_name] += amount
-        
+
         # Get top 5 vendors
-        top_vendors = sorted(vendor_totals.items(), key=lambda x: x[1], reverse=True)[:5]
-        
+        top_vendors = sorted(vendor_totals.items(), key=lambda x: x[1], reverse=True)[
+            :5
+        ]
+
         result = []
         for vendor_name, amount in top_vendors:
-            result.append({
-                "vendor_name": vendor_name,
-                "amount": float(amount),
-                "amount_display": self._in_lakhs(amount),
-            })
-        
+            result.append(
+                {
+                    "vendor_name": vendor_name,
+                    "amount": float(amount),
+                    "amount_display": self._in_lakhs(amount),
+                }
+            )
+
         return result
 
     def _calculate_payment_methods(self, paid_payments):
         """Calculate payment methods distribution"""
         method_totals = defaultdict(Decimal)
-        
+
         # Color mapping for payment methods
         method_colors = {
             "Bank Transfer": "#3B82F6",  # Blue
@@ -167,26 +183,32 @@ class APAnalyticsView(APIView):
             "Cash": "#6B7280",  # Gray
             "Credit Card": "#8B5CF6",  # Purple
         }
-        
+
         for payment in paid_payments:
             method = payment.payment_method
             amount = payment.amount
             method_totals[method] += amount
-        
+
         # Calculate total for percentage
         total_payments = sum(method_totals.values())
-        
+
         result = []
-        for method, amount in sorted(method_totals.items(), key=lambda x: x[1], reverse=True):
-            percentage = float((amount / total_payments * 100)) if total_payments > 0 else 0.0
-            result.append({
-                "payment_method": method,
-                "amount": float(amount),
-                "amount_display": self._in_lakhs(amount),
-                "percentage": round(percentage, 1),
-                "color": method_colors.get(method, "#6B7280"),  # Default gray
-            })
-        
+        for method, amount in sorted(
+            method_totals.items(), key=lambda x: x[1], reverse=True
+        ):
+            percentage = (
+                float((amount / total_payments * 100)) if total_payments > 0 else 0.0
+            )
+            result.append(
+                {
+                    "payment_method": method,
+                    "amount": float(amount),
+                    "amount_display": self._in_lakhs(amount),
+                    "percentage": round(percentage, 1),
+                    "color": method_colors.get(method, "#6B7280"),  # Default gray
+                }
+            )
+
         return result
 
     def get(self, request, *args, **kwargs):
@@ -204,9 +226,11 @@ class APAnalyticsView(APIView):
             )
 
         # Get all bills
-        all_bills = Bill.objects.filter(company=company).exclude(
-            status=BillsStatusChoices.CANCELLED
-        ).select_related("vendor")
+        all_bills = (
+            Bill.objects.filter(company=company)
+            .exclude(status=BillsStatusChoices.CANCELLED)
+            .select_related("vendor")
+        )
 
         # Get all payments
         paid_payments = BillPayment.objects.filter(company=company)
@@ -228,4 +252,3 @@ class APAnalyticsView(APIView):
         serializer.is_valid(raise_exception=True)
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
-

@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from financial.models.account_payable.bills import Bill
+from financial.models.expenses.bills import Bill
 from financial.enums import BillsStatusChoices
 from financial.serializers.account_payable.vendor_balance import (
     VendorBalanceSummarySerializer,
@@ -66,7 +66,11 @@ class VendorBalanceSummaryView(APIView):
         vendor_data = {}
         for bill in bills:
             vendor_id = bill.vendor_id
-            vendor_name = bill.vendor.name if bill.vendor else (bill.vendor_name or "Unknown Vendor")
+            vendor_name = (
+                bill.vendor.name
+                if bill.vendor
+                else (bill.vendor_name or "Unknown Vendor")
+            )
             key = vendor_id or vendor_name
 
             if key not in vendor_data:
@@ -105,7 +109,9 @@ class VendorBalanceSummaryView(APIView):
                     "outstanding_display": self._in_lakhs(entry["outstanding"]),
                     "bill_count": entry["bill_count"],
                     "oldest_bill_date": oldest_date,
-                    "oldest_bill_display": self._format_date(oldest_date) if oldest_date else "-",
+                    "oldest_bill_display": (
+                        self._format_date(oldest_date) if oldest_date else "-"
+                    ),
                     "percentage_of_total": round(percentage, 1),
                 }
             )

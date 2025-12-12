@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Company
-from financial.models.account_payable.bills import Bill
+from financial.models.expenses.bills import Bill
 from financial.enums import BillsStatusChoices
 from financial.serializers.account_payable.ap_aging import APAgeingSummarySerializer
 
@@ -80,9 +80,7 @@ class APAgeingSummaryView(APIView):
         # Filter by calculated balance: amount > paid_amount
         queryset = (
             Bill.objects.filter(company=company)
-            .exclude(
-                status__in=[BillsStatusChoices.PAID, BillsStatusChoices.CANCELLED]
-            )
+            .exclude(status__in=[BillsStatusChoices.PAID, BillsStatusChoices.CANCELLED])
             .filter(amount__gt=F("paid_amount"))
         )
 
@@ -214,4 +212,3 @@ class APAgeingSummaryView(APIView):
         serializer.is_valid(raise_exception=True)
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
-

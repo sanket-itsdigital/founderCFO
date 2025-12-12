@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.utils import get_user_company
-from financial.models.account_payable.bills import Bill
+from financial.models.expenses.bills import Bill
 from financial.models.account_payable.payment import BillPayment
 from financial.enums import BillsStatusChoices
 from financial.serializers.account_payable.ap_dashboard import APDashboardSerializer

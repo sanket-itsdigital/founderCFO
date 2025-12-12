@@ -57,3 +57,13 @@ class AnalyticsSerializer(serializers.Serializer):
     avg_salary_by_department = serializers.ListField(child=DepartmentSalarySerializer())
     budget_vs_actual = serializers.ListField(child=BudgetActualSerializer())
 
+
+
+
+
+
+
+
+
+
+

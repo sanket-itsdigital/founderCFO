@@ -7,16 +7,18 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from financial.models.account_payable.bills import Bill
+from financial.models.expenses.bills import Bill
 from financial.enums import BillsStatusChoices
-from financial.serializers.account_payable.payment_priority import PaymentPriorityQueueSerializer
+from financial.serializers.account_payable.payment_priority import (
+    PaymentPriorityQueueSerializer,
+)
 from financial.views.api.account_payable.ap_aging import get_company_from_request
 
 
 class PaymentPriorityQueueView(APIView):
     """
     API view to get Payment Priority Queue.
-    
+
     Returns bills prioritized by overdue status and early payment discounts.
     Priority levels:
     - Critical: 45+ days overdue
@@ -79,7 +81,7 @@ class PaymentPriorityQueueView(APIView):
         # In production, this should come from vendor.payment_terms or discount programs
         today = timezone.now().date()
         days_since_bill = (today - bill_date).days
-        
+
         # Example: If bill is less than 10 days old and not overdue, offer discount
         if days_since_bill <= 10 and due_date >= today:
             # Return a discount between 2-3% (example)
@@ -185,7 +187,9 @@ class PaymentPriorityQueueView(APIView):
                     "amount_due": float(balance),
                     "amount_due_display": self._format_amount_display(balance),
                     "discount_percentage": discount_percentage,
-                    "discount_display": f"{discount_percentage}%" if discount_percentage else "-",
+                    "discount_display": (
+                        f"{discount_percentage}%" if discount_percentage else "-"
+                    ),
                     "priority": priority,
                     "priority_color": priority_color,
                 }
@@ -215,4 +219,3 @@ class PaymentPriorityQueueView(APIView):
         serializer.is_valid(raise_exception=True)
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
-
