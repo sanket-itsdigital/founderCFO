@@ -14,6 +14,7 @@ from revenue.models.invoice import Invoice
 from financial.enums import InvoicesStatusChoices
 from financial.serializers.account_receivable.ar_dashboard import ARDashboardSerializer
 from financial.views.api.account_receivable.ar_aging import get_company_from_request
+from financial.models.account_receivable.reconcile import BankTransaction
 
 
 class ARDashboardView(APIView):
@@ -121,46 +122,48 @@ class ARDashboardView(APIView):
             status=InvoicesStatusChoices.CANCELLED
         )
 
-        # Get outstanding invoices
-        outstanding_invoices = all_invoices.filter(
-            total_amount__gt=F("paid_amount")
-        ).exclude(status=InvoicesStatusChoices.PAID)
+        # Outstanding: exclude PAID
+        outstanding_invoices = all_invoices.exclude(status=InvoicesStatusChoices.PAID)
 
-        # Calculate Total Receivables
-        total_receivables = sum(
-            invoice.balance_amount for invoice in outstanding_invoices
-        )
-
-        # Calculate Overdue AR
-        overdue_invoices = [inv for inv in outstanding_invoices if inv.is_overdue]
-        overdue_ar = sum(inv.balance_amount for inv in overdue_invoices)
+        # Totals
+        total_receivables = sum(inv.total_amount for inv in outstanding_invoices)
+        overdue_invoices = [inv for inv in outstanding_invoices if inv.due_date < today]
+        overdue_ar = sum(inv.total_amount for inv in overdue_invoices)
         overdue_percentage = (
-            (overdue_ar / total_receivables * 100) if total_receivables > 0 else 0.0
+            float((overdue_ar / total_receivables) * 100)
+            if total_receivables > 0
+            else 0.0
         )
 
-        # Calculate DSO
-        # Total invoiced in last 90 days
+        # Invoiced last 90 days
         invoiced_last_90_days = all_invoices.filter(
             invoice_date__gte=last_90_days_start
         ).aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
         dso = self._calculate_dso(total_receivables, invoiced_last_90_days)
-        dso_target = 30  # Standard target
+        dso_target = 30
 
-        # Calculate Collection Efficiency (last 90 days)
-        collected_last_90_days = all_invoices.filter(
-            invoice_date__gte=last_90_days_start
-        ).aggregate(total=Sum("paid_amount"))["total"] or Decimal("0.00")
+        # Collections via matched bank transactions
+        from financial.models.account_receivable.reconcile import BankTransaction
+
+        collected_last_90_days = BankTransaction.objects.filter(
+            company=company,
+            is_matched=True,
+            matched_at__date__gte=last_90_days_start,
+            matched_at__date__lte=today,
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
         collection_efficiency = self._calculate_collection_efficiency(
             collected_last_90_days, invoiced_last_90_days
         )
 
-        # Calculate Average Days Delinquent
-        avg_days_delinquent = self._calculate_avg_days_delinquent(overdue_invoices)
+        this_month_collections = BankTransaction.objects.filter(
+            company=company,
+            is_matched=True,
+            matched_at__date__gte=current_month_start,
+            matched_at__date__lte=today,
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
-        # This Month Collections
-        this_month_collections = all_invoices.filter(
-            status=InvoicesStatusChoices.PAID, updated_at__gte=current_month_start
-        ).aggregate(total=Sum("paid_amount"))["total"] or Decimal("0.00")
+        # Average Days Delinquent
+        avg_days_delinquent = self._calculate_avg_days_delinquent(overdue_invoices)
 
         # Invoice Status Counts
         invoice_status_counts = {
@@ -185,11 +188,13 @@ class ARDashboardView(APIView):
 
         for invoice in outstanding_invoices:
             days_until_due = (invoice.due_date - today).days
-            balance = invoice.balance_amount
+            balance = invoice.total_amount
 
             if days_until_due == 0:
                 ageing_buckets["current"] += balance
-            elif days_until_due > 0 and days_until_due <= 30:
+                customer_outstanding[invoice.customer_name][
+                    "outstanding"
+                ] += invoice.total_amount
                 ageing_buckets["1_30_days"] += balance
             elif days_until_due > 30 and days_until_due <= 60:
                 ageing_buckets["31_60_days"] += balance
@@ -271,7 +276,7 @@ class ARDashboardView(APIView):
         for invoice in outstanding_invoices:
             customer_outstanding[invoice.customer_name][
                 "outstanding"
-            ] += invoice.balance_amount
+            ] += invoice.total_amount
             customer_outstanding[invoice.customer_name]["invoices"].append(invoice)
 
         top_customers = sorted(
@@ -313,11 +318,13 @@ class ARDashboardView(APIView):
                 invoice_date__gte=month_start, invoice_date__lte=month_end
             ).aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
 
-            month_collected = all_invoices.filter(
-                status=InvoicesStatusChoices.PAID,
-                updated_at__gte=month_start,
-                updated_at__lte=month_end,
-            ).aggregate(total=Sum("paid_amount"))["total"] or Decimal("0.00")
+            # Collections via matched bank transactions in this month
+            month_collected = BankTransaction.objects.filter(
+                company=company,
+                is_matched=True,
+                matched_at__date__gte=month_start,
+                matched_at__date__lte=month_end,
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
             month_name = month_start.strftime("%b")
             collection_trend.append(

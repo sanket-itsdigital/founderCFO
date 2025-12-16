@@ -95,12 +95,8 @@ class CashFlowProjectionView(APIView):
         today = timezone.now().date()
 
         # Get all outstanding invoices (not paid or cancelled)
-        invoices = (
-            Invoice.objects.filter(company=company)
-            .exclude(
-                status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
-            )
-            .filter(total_amount__gt=F("paid_amount"))
+        invoices = Invoice.objects.filter(company=company).exclude(
+            status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
         )
 
         # Calculate summary amounts
@@ -114,7 +110,8 @@ class CashFlowProjectionView(APIView):
         total_due = Decimal("0")
 
         for invoice in invoices:
-            balance = invoice.balance_amount
+            # Revenue Invoice does not store paid_amount; treat full total as outstanding
+            balance = invoice.total_amount
             total_due += balance
 
             if invoice.due_date <= next_30_days:
@@ -139,7 +136,7 @@ class CashFlowProjectionView(APIView):
 
             # Process each invoice
             for invoice in invoices:
-                balance = invoice.balance_amount
+                balance = invoice.total_amount
                 days_until_due = (invoice.due_date - today).days
 
                 # Determine which week the invoice is due
@@ -235,7 +232,7 @@ class CashFlowProjectionView(APIView):
                 # Calculate amounts for invoices due in this month
                 for invoice in invoices:
                     if month_start <= invoice.due_date <= month_end:
-                        balance = invoice.balance_amount
+                        balance = invoice.total_amount
                         due_amount += balance
 
                         days_until_due = (invoice.due_date - today).days

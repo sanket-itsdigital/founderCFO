@@ -138,9 +138,7 @@ class CollectionPriorityView(APIView):
             .exclude(
                 status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
             )
-            .filter(
-                total_amount__gt=F("paid_amount"), due_date__lt=timezone.now().date()
-            )
+            .filter(due_date__lt=timezone.now().date())
         )
 
         return queryset
@@ -218,7 +216,8 @@ class CollectionPriorityView(APIView):
         # Process invoices
         for invoice in invoices:
             customer_name = invoice.customer_name
-            balance = invoice.balance_amount
+            # Revenue Invoice has no paid tracking; treat full total as outstanding
+            balance = invoice.total_amount
             customer_data[customer_name]["invoices"].append(invoice)
             customer_data[customer_name]["outstanding"] += balance
 
