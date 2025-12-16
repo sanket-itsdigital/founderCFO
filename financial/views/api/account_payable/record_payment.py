@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from financial.models.expenses.bills import Bill
+from expense.models.bills import Bill
 from financial.models.account_payable.payment import BillPayment
 from financial.enums import BillsStatusChoices
 from financial.serializers.account_payable.record_payment import (

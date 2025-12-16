@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models import Sum
 from django.utils import timezone
 
-from financial.models.expenses.bills import Bill
+from expense.models.bills import Bill
 
 
 class PaymentMethodChoices(models.TextChoices):

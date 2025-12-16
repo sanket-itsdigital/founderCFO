@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 
 from accounts.models import Company
 from financial.enums import BillsStatusChoices, InvoicesPaymentTerms
-from financial.models.expenses.bills import Bill
+from expense.models.bills import Bill
 from financial.models.account_payable.vendor import Vendor
 from financial.views.api.account_payable.ap_aging import get_company_from_request
 
