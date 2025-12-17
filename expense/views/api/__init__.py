@@ -7,6 +7,10 @@ from expense.views.api.vendors import (
     VendorsView,
     VendorBillsView,
 )
+from expense.views.api.categories import (
+    CategoriesView,
+    CategoryBillsView,
+)
 
 __all__ = [
     "BillListCreateView",
@@ -14,4 +18,6 @@ __all__ = [
     "BillImportView",
     "VendorsView",
     "VendorBillsView",
+    "CategoriesView",
+    "CategoryBillsView",
 ]

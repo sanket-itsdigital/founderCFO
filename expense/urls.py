@@ -8,6 +8,10 @@ from expense.views.api.vendors import (
     VendorsView,
     VendorBillsView,
 )
+from expense.views.api.categories import (
+    CategoriesView,
+    CategoryBillsView,
+)
 
 app_name = "expense"
 
@@ -39,5 +43,16 @@ urlpatterns = [
         "vendors/<uuid:vendor_id>/bills/",
         VendorBillsView.as_view(),
         name="vendor-bills",
+    ),
+    # Categories - Combined API (Summary, Distribution, Top Sub-Categories, All Categories)
+    path(
+        "categories/",
+        CategoriesView.as_view(),
+        name="categories",
+    ),
+    path(
+        "categories/<str:category_name>/bills/",
+        CategoryBillsView.as_view(),
+        name="category-bills",
     ),
 ]
