@@ -19,6 +19,9 @@ from expense.views.api.branches import (
     BranchesView,
     BranchBillsView,
 )
+from expense.views.api.analytics import (
+    AnalyticsOverviewView,
+)
 
 __all__ = [
     "BillListCreateView",
@@ -32,4 +35,5 @@ __all__ = [
     "DepartmentBillsView",
     "BranchesView",
     "BranchBillsView",
+    "AnalyticsOverviewView",
 ]

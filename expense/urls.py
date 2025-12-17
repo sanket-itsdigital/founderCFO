@@ -20,6 +20,9 @@ from expense.views.api.branches import (
     BranchesView,
     BranchBillsView,
 )
+from expense.views.api.analytics import (
+    AnalyticsOverviewView,
+)
 
 app_name = "expense"
 
@@ -84,5 +87,11 @@ urlpatterns = [
         "branches/<str:branch_name>/bills/",
         BranchBillsView.as_view(),
         name="branch-bills",
+    ),
+    # Analytics - Overview
+    path(
+        "analytics/overview/",
+        AnalyticsOverviewView.as_view(),
+        name="analytics-overview",
     ),
 ]
