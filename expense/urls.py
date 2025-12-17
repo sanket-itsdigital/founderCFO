@@ -4,6 +4,10 @@ from expense.views.api.bills import (
     BillRetrieveUpdateDestroyView,
 )
 from expense.views.api.import_bills import BillImportView
+from expense.views.api.vendors import (
+    VendorsView,
+    VendorBillsView,
+)
 
 app_name = "expense"
 
@@ -24,5 +28,16 @@ urlpatterns = [
         "bills/import/",
         BillImportView.as_view(),
         name="bill-import",
+    ),
+    # Vendors - Combined API (Summary, Top Vendors, All Vendors)
+    path(
+        "vendors/",
+        VendorsView.as_view(),
+        name="vendors",
+    ),
+    path(
+        "vendors/<uuid:vendor_id>/bills/",
+        VendorBillsView.as_view(),
+        name="vendor-bills",
     ),
 ]
