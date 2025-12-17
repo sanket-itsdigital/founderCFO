@@ -11,6 +11,10 @@ from expense.views.api.categories import (
     CategoriesView,
     CategoryBillsView,
 )
+from expense.views.api.departments import (
+    DepartmentsView,
+    DepartmentBillsView,
+)
 
 __all__ = [
     "BillListCreateView",
@@ -20,4 +24,6 @@ __all__ = [
     "VendorBillsView",
     "CategoriesView",
     "CategoryBillsView",
+    "DepartmentsView",
+    "DepartmentBillsView",
 ]

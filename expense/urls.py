@@ -12,6 +12,10 @@ from expense.views.api.categories import (
     CategoriesView,
     CategoryBillsView,
 )
+from expense.views.api.departments import (
+    DepartmentsView,
+    DepartmentBillsView,
+)
 
 app_name = "expense"
 
@@ -54,5 +58,16 @@ urlpatterns = [
         "categories/<str:category_name>/bills/",
         CategoryBillsView.as_view(),
         name="category-bills",
+    ),
+    # Departments - Combined API (Summary, Spend by Department, Distribution, All Departments)
+    path(
+        "departments/",
+        DepartmentsView.as_view(),
+        name="departments",
+    ),
+    path(
+        "departments/<str:department_name>/bills/",
+        DepartmentBillsView.as_view(),
+        name="department-bills",
     ),
 ]
