@@ -156,6 +156,253 @@ class AnalyticsTrendsView(APIView):
         )
 
 
+class AnalyticsByBranchView(APIView):
+    """
+    Combined API endpoint for Analytics By Branch data.
+
+    GET /api/expense/analytics/by-branch/
+    - Returns:
+      * Summary KPIs: Total Branches, Total Expenses, Top Branch, Avg/Branch, Vendors, Categories
+      * Branch Performance Leaderboard
+      * Expense Distribution (for donut chart)
+      * Expenses by Branch (for horizontal bar chart)
+      * Monthly Trend by Branch (for line chart)
+    - Query parameters:
+      * months (optional): Number of months to include in trends (default: 12)
+      * top_branches_limit (optional): Number of top branches for trends (default: 5)
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _format_amount(amount: Decimal) -> str:
+        """Format amount in lakhs/crores"""
+        if amount == 0:
+            return "₹0"
+        if amount < 1000:
+            return f"₹{amount:,.2f}"
+        elif amount < 100000:
+            return f"₹{amount / 1000:.2f}K"
+        elif amount < 10000000:  # Less than 1 crore
+            lakhs = amount / Decimal("100000")
+            return f"₹{lakhs.quantize(Decimal('0.01'))}L"
+        else:  # 1 crore or more
+            crores = amount / Decimal("10000000")
+            return f"₹{crores.quantize(Decimal('0.01'))}Cr"
+
+    def get(self, request, *args, **kwargs):
+        """Get all analytics by branch data in one response"""
+        company = get_company_from_request(request)
+        if not company:
+            return Response(
+                {
+                    "summary": {
+                        "total_branches": 0,
+                        "total_expenses": 0,
+                        "total_expenses_display": "₹0",
+                        "top_branch": {
+                            "branch_name": "",
+                            "percentage": 0.0,
+                        },
+                        "avg_per_branch": 0,
+                        "avg_per_branch_display": "₹0",
+                        "total_vendors": 0,
+                        "total_categories": 0,
+                    },
+                    "branch_performance_leaderboard": [],
+                    "expense_distribution": [],
+                    "expenses_by_branch": [],
+                    "monthly_trend_by_branch": [],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        # Get query parameters
+        months = int(request.query_params.get("months", 12))
+        top_branches_limit = int(request.query_params.get("top_branches_limit", 5))
+
+        # Get all bills (excluding cancelled)
+        bills = (
+            Bill.objects.filter(company=company)
+            .exclude(status=BillsStatusChoices.CANCELLED)
+            .select_related("vendor")
+        )
+
+        # Group by branch
+        branch_data = defaultdict(
+            lambda: {
+                "total_spend": Decimal("0"),
+                "bill_count": 0,
+                "vendors": set(),
+                "categories": set(),
+            }
+        )
+
+        for bill in bills:
+            branch = bill.branch or "Unspecified"
+            branch_data[branch]["total_spend"] += bill.total
+            branch_data[branch]["bill_count"] += 1
+            if bill.category:
+                branch_data[branch]["categories"].add(bill.category)
+            # Track vendors
+            vendor_key = bill.vendor_id or bill.vendor_name
+            if vendor_key:
+                branch_data[branch]["vendors"].add(vendor_key)
+
+        total_branches = len(branch_data)
+        total_expenses = sum(data["total_spend"] for data in branch_data.values())
+
+        # Calculate summary
+        top_branch = None
+        top_branch_spend = Decimal("0")
+        for branch, data in branch_data.items():
+            if data["total_spend"] > top_branch_spend:
+                top_branch_spend = data["total_spend"]
+                top_branch = branch
+
+        top_branch_percentage = (
+            float((top_branch_spend / total_expenses) * 100)
+            if total_expenses > 0
+            else 0.0
+        )
+
+        avg_per_branch = (
+            total_expenses / Decimal(str(total_branches))
+            if total_branches > 0
+            else Decimal("0")
+        )
+
+        # Calculate total vendors and categories across all branches
+        all_vendors = set()
+        all_categories = set()
+        for data in branch_data.values():
+            all_vendors.update(data["vendors"])
+            all_categories.update(data["categories"])
+
+        summary = {
+            "total_branches": total_branches,
+            "total_expenses": float(total_expenses),
+            "total_expenses_display": self._format_amount(total_expenses),
+            "top_branch": {
+                "branch_name": top_branch or "",
+                "percentage": round(top_branch_percentage, 1),
+            },
+            "avg_per_branch": float(avg_per_branch),
+            "avg_per_branch_display": self._format_amount(avg_per_branch),
+            "total_vendors": len(all_vendors),
+            "total_categories": len(all_categories),
+        }
+
+        # Branch Performance Leaderboard
+        sorted_branches = sorted(
+            branch_data.items(), key=lambda x: x[1]["total_spend"], reverse=True
+        )
+
+        branch_performance_leaderboard = []
+        for rank, (branch, data) in enumerate(sorted_branches, 1):
+            percentage = (
+                float((data["total_spend"] / total_expenses) * 100)
+                if total_expenses > 0
+                else 0.0
+            )
+            branch_performance_leaderboard.append(
+                {
+                    "rank": rank,
+                    "branch": branch,
+                    "bills_count": data["bill_count"],
+                    "vendors_count": len(data["vendors"]),
+                    "amount": float(data["total_spend"]),
+                    "amount_display": self._format_amount(data["total_spend"]),
+                    "share_percentage": round(percentage, 1),
+                }
+            )
+
+        # Expense Distribution (for donut chart)
+        expense_distribution = []
+        for branch, data in sorted_branches:
+            percentage = (
+                float((data["total_spend"] / total_expenses) * 100)
+                if total_expenses > 0
+                else 0.0
+            )
+            expense_distribution.append(
+                {
+                    "branch": branch,
+                    "amount": float(data["total_spend"]),
+                    "amount_display": self._format_amount(data["total_spend"]),
+                    "percentage": round(percentage, 1),
+                }
+            )
+
+        # Expenses by Branch (for horizontal bar chart) - Top 10
+        expenses_by_branch = []
+        for branch, data in sorted_branches[:10]:
+            expenses_by_branch.append(
+                {
+                    "branch": branch,
+                    "amount": float(data["total_spend"]),
+                    "amount_display": self._format_amount(data["total_spend"]),
+                }
+            )
+
+        # Monthly Trend by Branch (for line chart) - Top 5 branches
+        today = timezone.now().date()
+        current_month_start = today.replace(day=1)
+
+        # Get top branches for trend
+        top_branches_for_trend = [
+            branch for branch, _ in sorted_branches[:top_branches_limit]
+        ]
+
+        monthly_trend_by_branch = []
+        for i in range(months - 1, -1, -1):
+            month_date = (current_month_start - timedelta(days=30 * i)).replace(day=1)
+            last_day = monthrange(month_date.year, month_date.month)[1]
+            month_end = month_date.replace(day=last_day)
+
+            # Get bills for this month
+            month_bills = bills.filter(
+                bill_date__year=month_date.year, bill_date__month=month_date.month
+            )
+
+            # Group by branch for this month
+            month_branch_data = defaultdict(lambda: Decimal("0"))
+            for bill in month_bills:
+                branch = bill.branch or "Unspecified"
+                month_branch_data[branch] += bill.total
+
+            # Create data for each top branch
+            branches_data = []
+            for branch in top_branches_for_trend:
+                amount = month_branch_data.get(branch, Decimal("0"))
+                branches_data.append(
+                    {
+                        "branch": branch,
+                        "amount": float(amount),
+                        "amount_display": self._format_amount(amount),
+                    }
+                )
+
+            monthly_trend_by_branch.append(
+                {
+                    "month": month_date.strftime("%Y-%m"),
+                    "month_display": month_date.strftime("%b %Y"),
+                    "branches": branches_data,
+                }
+            )
+
+        return Response(
+            {
+                "summary": summary,
+                "branch_performance_leaderboard": branch_performance_leaderboard,
+                "expense_distribution": expense_distribution,
+                "expenses_by_branch": expenses_by_branch,
+                "monthly_trend_by_branch": monthly_trend_by_branch,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class AnalyticsOverviewView(APIView):
     """
     Combined API endpoint for Analytics Overview data.
