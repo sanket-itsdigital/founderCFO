@@ -25,6 +25,7 @@ from expense.views.api.analytics import (
     AnalyticsTrendsView,
     AnalyticsByBranchView,
 )
+from expense.views.api.gst_summary import GSTSummaryView
 
 app_name = "expense"
 
@@ -107,5 +108,11 @@ urlpatterns = [
         "analytics/by-branch/",
         AnalyticsByBranchView.as_view(),
         name="analytics-by-branch",
+    ),
+    # GST Summary
+    path(
+        "gst-summary/",
+        GSTSummaryView.as_view(),
+        name="gst-summary",
     ),
 ]

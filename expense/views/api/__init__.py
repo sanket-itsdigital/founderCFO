@@ -24,6 +24,7 @@ from expense.views.api.analytics import (
     AnalyticsTrendsView,
     AnalyticsByBranchView,
 )
+from expense.views.api.gst_summary import GSTSummaryView
 
 __all__ = [
     "BillListCreateView",
@@ -40,4 +41,5 @@ __all__ = [
     "AnalyticsOverviewView",
     "AnalyticsTrendsView",
     "AnalyticsByBranchView",
+    "GSTSummaryView",
 ]
