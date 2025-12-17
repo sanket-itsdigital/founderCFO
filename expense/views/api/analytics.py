@@ -1,6 +1,7 @@
 from decimal import Decimal
 from collections import defaultdict
 from datetime import datetime, timedelta
+from calendar import monthrange
 from django.db.models import Q, Count, Sum
 from django.utils import timezone
 from rest_framework import status
@@ -12,6 +13,147 @@ from accounts.models import Company
 from expense.models.bills import Bill
 from expense.views.api.bills import get_company_from_request
 from financial.enums import BillsStatusChoices
+
+
+class AnalyticsTrendsView(APIView):
+    """
+    Combined API endpoint for Analytics Trends data.
+
+    GET /api/expense/analytics/trends/
+    - Returns:
+      * Monthly Expense Trend (time-series data for area chart)
+      * Category Breakdown by Month (stacked bar chart data)
+    - Query parameters:
+      * months (optional): Number of months to include in trends (default: 12)
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _format_amount(amount: Decimal) -> str:
+        """Format amount in lakhs/crores"""
+        if amount == 0:
+            return "₹0"
+        if amount < 1000:
+            return f"₹{amount:,.2f}"
+        elif amount < 100000:
+            return f"₹{amount / 1000:.2f}K"
+        elif amount < 10000000:  # Less than 1 crore
+            lakhs = amount / Decimal("100000")
+            return f"₹{lakhs.quantize(Decimal('0.01'))}L"
+        else:  # 1 crore or more
+            crores = amount / Decimal("10000000")
+            return f"₹{crores.quantize(Decimal('0.01'))}Cr"
+
+    def get(self, request, *args, **kwargs):
+        """Get all analytics trends data in one response"""
+        company = get_company_from_request(request)
+        if not company:
+            return Response(
+                {
+                    "monthly_expense_trend": [],
+                    "category_breakdown_by_month": [],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        # Get query parameters
+        months = int(request.query_params.get("months", 12))
+
+        # Get all bills (excluding cancelled)
+        bills = Bill.objects.filter(company=company).exclude(
+            status=BillsStatusChoices.CANCELLED
+        )
+
+        today = timezone.now().date()
+        current_month_start = today.replace(day=1)
+
+        # Category color mapping
+        category_colors = {
+            "Technology & Infrastructure": "#10B981",  # teal/green
+            "Travel & Conveyance": "#F97316",  # orange
+            "Establishment Expenses": "#6B7280",  # dark grey
+            "Marketing & Sales": "#EC4899",  # pink
+            "Personnel Expenses": "#000000",  # black
+            "Financial Expenses": "#3B82F6",  # blue
+            "Depreciation & Amortization": "#9CA3AF",  # light grey
+            "Miscellaneous Expenses": "#F97316",  # orange
+            "Statutory & Taxes": "#8B5CF6",  # purple
+            "Professional & Legal": "#4B5563",  # darker grey
+            "Administrative Expenses": "#991B1B",  # dark red
+        }
+
+        # Monthly Expense Trend
+        monthly_expense_trend = []
+        category_breakdown_by_month = []
+
+        for i in range(months - 1, -1, -1):
+            # Calculate month start and end properly
+            month_date = (current_month_start - timedelta(days=30 * i)).replace(day=1)
+            last_day = monthrange(month_date.year, month_date.month)[1]
+            month_end = month_date.replace(day=last_day)
+
+            # Get bills for this month
+            month_bills = bills.filter(
+                bill_date__year=month_date.year, bill_date__month=month_date.month
+            )
+
+            # Calculate total expenses for the month
+            month_total = sum(bill.total for bill in month_bills)
+
+            monthly_expense_trend.append(
+                {
+                    "month": month_date.strftime("%Y-%m"),
+                    "month_display": month_date.strftime("%b %Y"),
+                    "total_expenses": float(month_total),
+                    "total_expenses_display": self._format_amount(month_total),
+                }
+            )
+
+            # Category Breakdown for this month
+            category_data = defaultdict(lambda: Decimal("0"))
+            for bill in month_bills:
+                category = bill.category or "Uncategorized"
+                category_data[category] += bill.total
+
+            # Sort categories by amount descending
+            sorted_categories = sorted(
+                category_data.items(), key=lambda x: x[1], reverse=True
+            )
+
+            categories_list = []
+            for category, amount in sorted_categories:
+                categories_list.append(
+                    {
+                        "category": category,
+                        "amount": float(amount),
+                        "amount_display": self._format_amount(amount),
+                        "color": category_colors.get(category, "#6B7280"),
+                        "percentage": (
+                            float((amount / month_total) * 100)
+                            if month_total > 0
+                            else 0.0
+                        ),
+                    }
+                )
+
+            category_breakdown_by_month.append(
+                {
+                    "month": month_date.strftime("%Y-%m"),
+                    "month_display": month_date.strftime("%b %Y"),
+                    "categories": categories_list,
+                    "total": float(month_total),
+                    "total_display": self._format_amount(month_total),
+                }
+            )
+
+        return Response(
+            {
+                "monthly_expense_trend": monthly_expense_trend,
+                "category_breakdown_by_month": category_breakdown_by_month,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class AnalyticsOverviewView(APIView):
