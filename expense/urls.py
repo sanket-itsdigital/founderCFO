@@ -26,6 +26,11 @@ from expense.views.api.analytics import (
     AnalyticsByBranchView,
 )
 from expense.views.api.gst_summary import GSTSummaryView
+from expense.views.api.recurring import (
+    RecurringExpenseListCreateView,
+    RecurringExpenseRetrieveUpdateDestroyView,
+    RecurringExpenseChoicesView,
+)
 
 app_name = "expense"
 
@@ -114,5 +119,23 @@ urlpatterns = [
         "gst-summary/",
         GSTSummaryView.as_view(),
         name="gst-summary",
+    ),
+    # Recurring Expenses - Combined API (Summary + List, Create)
+    path(
+        "recurring/",
+        RecurringExpenseListCreateView.as_view(),
+        name="recurring-list-create",
+    ),
+    # Recurring Expenses - Choices (for dropdowns)
+    path(
+        "recurring/choices/",
+        RecurringExpenseChoicesView.as_view(),
+        name="recurring-choices",
+    ),
+    # Recurring Expenses - Retrieve, Update, Delete
+    path(
+        "recurring/<uuid:id>/",
+        RecurringExpenseRetrieveUpdateDestroyView.as_view(),
+        name="recurring-detail",
     ),
 ]

@@ -25,6 +25,11 @@ from expense.views.api.analytics import (
     AnalyticsByBranchView,
 )
 from expense.views.api.gst_summary import GSTSummaryView
+from expense.views.api.recurring import (
+    RecurringExpenseListCreateView,
+    RecurringExpenseRetrieveUpdateDestroyView,
+    RecurringExpenseChoicesView,
+)
 
 __all__ = [
     "BillListCreateView",
@@ -42,4 +47,7 @@ __all__ = [
     "AnalyticsTrendsView",
     "AnalyticsByBranchView",
     "GSTSummaryView",
+    "RecurringExpenseListCreateView",
+    "RecurringExpenseRetrieveUpdateDestroyView",
+    "RecurringExpenseChoicesView",
 ]
