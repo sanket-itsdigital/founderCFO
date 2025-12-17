@@ -30,6 +30,7 @@ from expense.views.api.recurring import (
     RecurringExpenseRetrieveUpdateDestroyView,
     RecurringExpenseChoicesView,
 )
+from expense.views.api.dashboard import ExpenseDashboardView
 
 __all__ = [
     "BillListCreateView",
@@ -50,4 +51,5 @@ __all__ = [
     "RecurringExpenseListCreateView",
     "RecurringExpenseRetrieveUpdateDestroyView",
     "RecurringExpenseChoicesView",
+    "ExpenseDashboardView",
 ]

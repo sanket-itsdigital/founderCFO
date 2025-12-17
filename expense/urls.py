@@ -31,6 +31,7 @@ from expense.views.api.recurring import (
     RecurringExpenseRetrieveUpdateDestroyView,
     RecurringExpenseChoicesView,
 )
+from expense.views.api.dashboard import ExpenseDashboardView
 
 app_name = "expense"
 
@@ -137,5 +138,11 @@ urlpatterns = [
         "recurring/<uuid:id>/",
         RecurringExpenseRetrieveUpdateDestroyView.as_view(),
         name="recurring-detail",
+    ),
+    # Expense Dashboard - Combined API (All dashboard components)
+    path(
+        "dashboard/",
+        ExpenseDashboardView.as_view(),
+        name="expense-dashboard",
     ),
 ]
