@@ -13,10 +13,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Company
-from financial.enums import BillsStatusChoices, InvoicesPaymentTerms
+from accounts.utils import get_user_company
 from expense.models.bills import Bill
+from expense.views.api.bills import get_company_from_request
+from financial.enums import BillsStatusChoices, InvoicesPaymentTerms
 from financial.models.account_payable.vendor import Vendor
-from financial.views.api.account_payable.ap_aging import get_company_from_request
 
 
 @dataclass
@@ -40,14 +41,19 @@ class BillImportView(APIView):
     Excel Import API for Expense Bills
     Accepts an Excel file and imports bill data into the database.
 
+    POST /api/expense/bills/import/
+    - Upload an Excel file (.xlsx or .xls) with bill data
+    - Automatically creates/updates vendors
+    - Calculates GST and TDS amounts automatically
+
     Expected Excel columns (all fields from Bill model):
     Required:
-    - bill_number
     - bill_date
-    - vendor_name (or vendor can be matched)
+    - vendor_name
     - subtotal
 
     Optional:
+    - bill_number (auto-generated if not provided)
     - due_date (will be calculated from bill_date + payment_terms if not provided)
     - vendor_gstin
     - vendor_pan
@@ -240,7 +246,7 @@ class BillImportView(APIView):
         if not company:
             return Response(
                 {
-                    "error": "Company not found. Please provide company_id in query params."
+                    "error": "Company not found. Please provide company_id in query params or ensure you're logged in."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )

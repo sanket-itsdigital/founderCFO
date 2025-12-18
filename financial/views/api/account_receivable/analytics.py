@@ -59,7 +59,7 @@ class AnalyticsView(APIView):
         paid_invoices = all_invoices.filter(status=InvoicesStatusChoices.PAID)
         outstanding_invoices = all_invoices.exclude(
             status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
-        ).filter(total_amount__gt=F("paid_amount"))
+        )
 
         # 1. Invoiced vs Collected Trend (Last 6 months)
         invoiced_collected_trend = self._calculate_invoiced_collected_trend(
@@ -147,8 +147,9 @@ class AnalyticsView(APIView):
 
             # Calculate DSO for this month
             # DSO = (Accounts Receivable / Total Credit Sales) * Number of Days
+            # Revenue invoices don't track paid; treat AR as total outstanding
             ar = outstanding_invoices.filter(due_date__lte=month_end).aggregate(
-                total=Sum(F("total_amount") - F("paid_amount"))
+                total=Sum("total_amount")
             )["total"] or Decimal("0.00")
 
             # Get credit sales for the month (invoices created)
@@ -194,7 +195,7 @@ class AnalyticsView(APIView):
 
         for invoice in outstanding_invoices:
             category = invoice.category or "Other"
-            balance = invoice.balance_amount
+            balance = invoice.total_amount
             category_totals[category] += balance
 
         result = []
@@ -217,7 +218,7 @@ class AnalyticsView(APIView):
         customer_totals = defaultdict(Decimal)
 
         for invoice in outstanding_invoices:
-            customer_totals[invoice.customer_name] += invoice.balance_amount
+            customer_totals[invoice.customer_name] += invoice.total_amount
 
         top_customers = sorted(
             customer_totals.items(), key=lambda x: x[1], reverse=True

@@ -1,4 +1,5 @@
 from decimal import Decimal
+from collections import defaultdict
 
 from django.db.models import F
 from django.utils import timezone
@@ -8,9 +9,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Company
-from financial.models.account_payable.bills import Bill
-from financial.enums import BillsStatusChoices
-from financial.serializers.account_payable.ap_aging import APAgeingSummarySerializer
+from expense.models.bills import Bill
+from financial.enums import BillsStatusChoices, RiskLevelChoices
+from financial.serializers.account_payable.ap_aging import (
+    APAgeingOverviewSerializer,
+    APAgeingByVendorSerializer,
+    APAgeingByCategorySerializer,
+    APAgeingByStatusSerializer,
+)
 
 
 def get_company_from_request(request):
@@ -25,16 +31,8 @@ def get_company_from_request(request):
     return Company.objects.filter(owner=request.user).first()
 
 
-class APAgeingSummaryView(APIView):
-    """
-    API view to get AP Ageing Summary dashboard data.
-
-    Returns:
-    - Total AP amount
-    - AP breakdown by ageing buckets (Current, 1-30 Days, 31-60 Days, 61-90 Days, 90+ Days)
-    - Overdue percentage
-    - Portfolio health indicator
-    """
+class APAgeingBaseView(APIView):
+    """Base view with shared methods for AP Ageing views"""
 
     permission_classes = [IsAuthenticated]
 
@@ -42,33 +40,59 @@ class APAgeingSummaryView(APIView):
     def _in_lakhs(amount: Decimal) -> str:
         """Convert amount to lakhs format (₹XX.XXL)"""
         if amount == 0:
-            return "₹0.00L"
+            return "₹0"
         lakhs = amount / Decimal("100000")
+        if lakhs < 1:
+            # For amounts less than 1 lakh, show in thousands
+            thousands = amount / Decimal("1000")
+            return f"₹{thousands.quantize(Decimal('0.1'))}K"
         return f"₹{lakhs.quantize(Decimal('0.01'))}L"
 
     @staticmethod
     def _calculate_ageing_bucket(due_date, today):
         """
-        Calculate which ageing bucket a bill falls into based on when payment is due.
-        Based on due_date - when payment is expected to be made.
+        Calculate which ageing bucket a bill falls into.
+        - Current: Not overdue (due_date >= today)
+        - 1-30 Days: Overdue by 1-30 days
+        - 31-60 Days: Overdue by 31-60 days
+        - 61-90 Days: Overdue by 61-90 days
+        - 90+ Days: Overdue by 90+ days
         """
-        days_until_due = (due_date - today).days
-
-        # Current: Payment due today or already overdue
-        if days_until_due <= 0:
+        if due_date >= today:
             return "current"
-        # 1-30 Days: Payment will be due in 1-30 days
-        elif days_until_due > 0 and days_until_due <= 30:
-            return "1_30_days"
-        # 31-60 Days: Payment will be due in 31-60 days
-        elif days_until_due > 30 and days_until_due <= 60:
-            return "31_60_days"
-        # 61-90 Days: Payment will be due in 61-90 days
-        elif days_until_due > 60 and days_until_due <= 90:
-            return "61_90_days"
-        # 90+ Days: Payment will be due in 90+ days
+
+        days_overdue = (today - due_date).days
+
+        if days_overdue <= 30:
+            return "overdue_1_30"
+        elif days_overdue <= 60:
+            return "overdue_31_60"
+        elif days_overdue <= 90:
+            return "overdue_61_90"
         else:
-            return "90_plus_days"
+            return "overdue_90_plus"
+
+    @staticmethod
+    def _calculate_risk_level(buckets, total):
+        """Calculate risk level based on overdue amounts"""
+        if total == 0:
+            return RiskLevelChoices.LOW.value
+
+        overdue_total = (
+            buckets.get("overdue_1_30", Decimal("0"))
+            + buckets.get("overdue_31_60", Decimal("0"))
+            + buckets.get("overdue_61_90", Decimal("0"))
+            + buckets.get("overdue_90_plus", Decimal("0"))
+        )
+
+        overdue_percentage = (overdue_total / total * 100) if total > 0 else 0
+
+        if overdue_percentage >= 50 or buckets.get("overdue_90_plus", Decimal("0")) > 0:
+            return RiskLevelChoices.HIGH.value
+        elif overdue_percentage >= 30:
+            return RiskLevelChoices.MEDIUM.value
+        else:
+            return RiskLevelChoices.LOW.value
 
     def _get_queryset(self, request):
         """Get filtered bills queryset for the company"""
@@ -77,141 +101,485 @@ class APAgeingSummaryView(APIView):
             return Bill.objects.none()
 
         # Get all bills with outstanding balance (not fully paid or cancelled)
-        # Filter by calculated balance: amount > paid_amount
         queryset = (
             Bill.objects.filter(company=company)
-            .exclude(
-                status__in=[BillsStatusChoices.PAID, BillsStatusChoices.CANCELLED]
-            )
-            .filter(amount__gt=F("paid_amount"))
+            .exclude(status__in=[BillsStatusChoices.PAID, BillsStatusChoices.CANCELLED])
+            .select_related("vendor")
         )
+
+        # Filter by balance > 0 (total - paid_amount > 0)
+        queryset = queryset.filter(total__gt=F("paid_amount"))
 
         return queryset
 
+
+class APAgeingOverviewView(APAgeingBaseView):
+    """
+    API view to get AP Ageing Overview.
+
+    Returns ageing buckets with amounts and percentages.
+    """
+
     def get(self, request, *args, **kwargs):
-        """Calculate and return AP ageing summary"""
+        """Calculate and return AP ageing overview"""
         bills = self._get_queryset(request)
 
         if not bills.exists():
-            # Return empty response
             return Response(
-                {
-                    "total_ap": 0,
-                    "total_ap_display": "₹0.00L",
-                    "overdue_percentage": 0.0,
-                    "portfolio_health": "No Outstanding AP",
-                    "ageing_buckets": [],
-                },
+                {"ageing_buckets": []},
                 status=status.HTTP_200_OK,
             )
 
         today = timezone.now().date()
 
-        # Initialize bucket totals
         buckets = {
             "current": Decimal("0"),
-            "1_30_days": Decimal("0"),
-            "31_60_days": Decimal("0"),
-            "61_90_days": Decimal("0"),
-            "90_plus_days": Decimal("0"),
+            "overdue_1_30": Decimal("0"),
+            "overdue_31_60": Decimal("0"),
+            "overdue_61_90": Decimal("0"),
+            "overdue_90_plus": Decimal("0"),
         }
 
-        # Calculate amounts for each bucket
         for bill in bills:
             bucket = self._calculate_ageing_bucket(bill.due_date, today)
-            # Use balance_amount property (amount - paid_amount)
             balance = bill.balance_amount
             buckets[bucket] += balance
 
-        # Calculate total AP
-        total_ap = sum(buckets.values())
+        total = sum(buckets.values())
 
-        # Calculate overdue amount (current bucket includes overdue bills)
-        # Overdue = bills where due_date < today
-        overdue_amount = Decimal("0")
-        for bill in bills:
-            if bill.due_date < today:
-                overdue_amount += bill.balance_amount
-
-        overdue_percentage = (
-            float((overdue_amount / total_ap * 100)) if total_ap > 0 else 0.0
-        )
-
-        # Determine portfolio health
-        if overdue_percentage >= 70:
-            portfolio_health = "At Risk - Prioritize payments"
-        elif overdue_percentage >= 50:
-            portfolio_health = "Moderate Risk - Monitor closely"
-        elif overdue_percentage >= 30:
-            portfolio_health = "Low Risk - Standard monitoring"
-        else:
-            portfolio_health = "Healthy - Minimal risk"
-
-        # Format ageing buckets data
         ageing_buckets = [
             {
                 "label": "Current",
                 "amount": float(buckets["current"]),
                 "amount_display": self._in_lakhs(buckets["current"]),
                 "percentage": (
-                    float((buckets["current"] / total_ap * 100))
-                    if total_ap > 0
-                    else 0.0
+                    float((buckets["current"] / total * 100)) if total > 0 else 0.0
                 ),
             },
             {
                 "label": "1-30 Days",
-                "amount": float(buckets["1_30_days"]),
-                "amount_display": self._in_lakhs(buckets["1_30_days"]),
+                "amount": float(buckets["overdue_1_30"]),
+                "amount_display": self._in_lakhs(buckets["overdue_1_30"]),
                 "percentage": (
-                    float((buckets["1_30_days"] / total_ap * 100))
-                    if total_ap > 0
-                    else 0.0
+                    float((buckets["overdue_1_30"] / total * 100)) if total > 0 else 0.0
                 ),
             },
             {
                 "label": "31-60 Days",
-                "amount": float(buckets["31_60_days"]),
-                "amount_display": self._in_lakhs(buckets["31_60_days"]),
+                "amount": float(buckets["overdue_31_60"]),
+                "amount_display": self._in_lakhs(buckets["overdue_31_60"]),
                 "percentage": (
-                    float((buckets["31_60_days"] / total_ap * 100))
-                    if total_ap > 0
+                    float((buckets["overdue_31_60"] / total * 100))
+                    if total > 0
                     else 0.0
                 ),
             },
             {
                 "label": "61-90 Days",
-                "amount": float(buckets["61_90_days"]),
-                "amount_display": self._in_lakhs(buckets["61_90_days"]),
+                "amount": float(buckets["overdue_61_90"]),
+                "amount_display": self._in_lakhs(buckets["overdue_61_90"]),
                 "percentage": (
-                    float((buckets["61_90_days"] / total_ap * 100))
-                    if total_ap > 0
+                    float((buckets["overdue_61_90"] / total * 100))
+                    if total > 0
                     else 0.0
                 ),
             },
             {
                 "label": "90+ Days",
-                "amount": float(buckets["90_plus_days"]),
-                "amount_display": self._in_lakhs(buckets["90_plus_days"]),
+                "amount": float(buckets["overdue_90_plus"]),
+                "amount_display": self._in_lakhs(buckets["overdue_90_plus"]),
                 "percentage": (
-                    float((buckets["90_plus_days"] / total_ap * 100))
-                    if total_ap > 0
+                    float((buckets["overdue_90_plus"] / total * 100))
+                    if total > 0
                     else 0.0
                 ),
             },
         ]
 
-        response_data = {
-            "total_ap": float(total_ap),
-            "total_ap_display": self._in_lakhs(total_ap),
-            "overdue_percentage": round(overdue_percentage, 1),
-            "portfolio_health": portfolio_health,
-            "ageing_buckets": ageing_buckets,
-        }
-
-        # Validate with serializer
-        serializer = APAgeingSummarySerializer(data=response_data)
+        response_data = {"ageing_buckets": ageing_buckets}
+        serializer = APAgeingOverviewSerializer(data=response_data)
         serializer.is_valid(raise_exception=True)
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
+
+class APAgeingByVendorView(APAgeingBaseView):
+    """
+    API view to get AP Ageing grouped by Vendor.
+
+    Returns vendors with ageing buckets, risk levels, and bill details.
+    """
+
+    def get(self, request, *args, **kwargs):
+        """Calculate and return AP ageing by vendor"""
+        bills = self._get_queryset(request)
+        today = timezone.now().date()
+
+        if not bills.exists():
+            return Response(
+                {"vendors": [], "totals": {}},
+                status=status.HTTP_200_OK,
+            )
+
+        vendor_data = defaultdict(
+            lambda: {
+                "vendor_id": None,
+                "vendor_name": None,
+                "buckets": {
+                    "current": Decimal("0"),
+                    "overdue_1_30": Decimal("0"),
+                    "overdue_31_60": Decimal("0"),
+                    "overdue_61_90": Decimal("0"),
+                    "overdue_90_plus": Decimal("0"),
+                },
+                "bills": [],
+            }
+        )
+
+        for bill in bills:
+            vendor_key = (
+                bill.vendor_id if bill.vendor else bill.vendor_name or "Unknown"
+            )
+            vendor_name = bill.get_vendor_name()
+
+            if bill.vendor:
+                vendor_data[vendor_key]["vendor_id"] = str(bill.vendor.id)
+            vendor_data[vendor_key]["vendor_name"] = vendor_name
+
+            bucket = self._calculate_ageing_bucket(bill.due_date, today)
+            balance = bill.balance_amount
+            vendor_data[vendor_key]["buckets"][bucket] += balance
+
+            vendor_data[vendor_key]["bills"].append(
+                {
+                    "bill_id": str(bill.id),
+                    "bill_number": bill.bill_number,
+                    "vendor_name": vendor_name,
+                    "due_date": bill.due_date,
+                    "category": bill.category or "",
+                    "amount": float(balance),
+                    "amount_display": self._in_lakhs(balance),
+                    "status": bill.status,
+                }
+            )
+
+        vendors = []
+        totals = {
+            "current": Decimal("0"),
+            "overdue_1_30": Decimal("0"),
+            "overdue_31_60": Decimal("0"),
+            "overdue_61_90": Decimal("0"),
+            "overdue_90_plus": Decimal("0"),
+        }
+
+        for vendor_key, data in vendor_data.items():
+            buckets = data["buckets"]
+            total = sum(buckets.values())
+
+            # Update totals
+            for key in totals:
+                totals[key] += buckets[key]
+
+            risk_level = self._calculate_risk_level(buckets, total)
+
+            vendors.append(
+                {
+                    "vendor_id": data["vendor_id"],
+                    "vendor_name": data["vendor_name"],
+                    "current_amount": float(buckets["current"]),
+                    "current_amount_display": self._in_lakhs(buckets["current"]),
+                    "overdue_1_30_amount": float(buckets["overdue_1_30"]),
+                    "overdue_1_30_amount_display": self._in_lakhs(
+                        buckets["overdue_1_30"]
+                    ),
+                    "overdue_31_60_amount": float(buckets["overdue_31_60"]),
+                    "overdue_31_60_amount_display": self._in_lakhs(
+                        buckets["overdue_31_60"]
+                    ),
+                    "overdue_61_90_amount": float(buckets["overdue_61_90"]),
+                    "overdue_61_90_amount_display": self._in_lakhs(
+                        buckets["overdue_61_90"]
+                    ),
+                    "overdue_90_plus_amount": float(buckets["overdue_90_plus"]),
+                    "overdue_90_plus_amount_display": self._in_lakhs(
+                        buckets["overdue_90_plus"]
+                    ),
+                    "total_amount": float(total),
+                    "total_amount_display": self._in_lakhs(total),
+                    "risk_level": risk_level,
+                    "bills": data["bills"],
+                }
+            )
+
+        # Sort by total amount descending
+        vendors.sort(key=lambda x: x["total_amount"], reverse=True)
+
+        response_data = {
+            "vendors": vendors,
+            "totals": {
+                "current": float(totals["current"]),
+                "current_display": self._in_lakhs(totals["current"]),
+                "overdue_1_30": float(totals["overdue_1_30"]),
+                "overdue_1_30_display": self._in_lakhs(totals["overdue_1_30"]),
+                "overdue_31_60": float(totals["overdue_31_60"]),
+                "overdue_31_60_display": self._in_lakhs(totals["overdue_31_60"]),
+                "overdue_61_90": float(totals["overdue_61_90"]),
+                "overdue_61_90_display": self._in_lakhs(totals["overdue_61_90"]),
+                "overdue_90_plus": float(totals["overdue_90_plus"]),
+                "overdue_90_plus_display": self._in_lakhs(totals["overdue_90_plus"]),
+                "total": float(sum(totals.values())),
+                "total_display": self._in_lakhs(sum(totals.values())),
+            },
+        }
+
+        serializer = APAgeingByVendorSerializer(data=response_data)
+        serializer.is_valid(raise_exception=True)
+
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class APAgeingByCategoryView(APAgeingBaseView):
+    """
+    API view to get AP Ageing grouped by Category.
+
+    Returns categories with ageing buckets and bill details.
+    """
+
+    def get(self, request, *args, **kwargs):
+        """Calculate and return AP ageing by category"""
+        bills = self._get_queryset(request)
+        today = timezone.now().date()
+
+        if not bills.exists():
+            return Response(
+                {"categories": [], "totals": {}},
+                status=status.HTTP_200_OK,
+            )
+
+        category_data = defaultdict(
+            lambda: {
+                "buckets": {
+                    "current": Decimal("0"),
+                    "overdue_1_30": Decimal("0"),
+                    "overdue_31_60": Decimal("0"),
+                    "overdue_61_90": Decimal("0"),
+                    "overdue_90_plus": Decimal("0"),
+                },
+                "bills": [],
+            }
+        )
+
+        for bill in bills:
+            category = bill.category or "Uncategorized"
+            bucket = self._calculate_ageing_bucket(bill.due_date, today)
+            balance = bill.balance_amount
+            category_data[category]["buckets"][bucket] += balance
+
+            category_data[category]["bills"].append(
+                {
+                    "bill_id": str(bill.id),
+                    "bill_number": bill.bill_number,
+                    "vendor_name": bill.get_vendor_name(),
+                    "due_date": bill.due_date,
+                    "category": category,
+                    "amount": float(balance),
+                    "amount_display": self._in_lakhs(balance),
+                    "status": bill.status,
+                }
+            )
+
+        categories = []
+        totals = {
+            "current": Decimal("0"),
+            "overdue_1_30": Decimal("0"),
+            "overdue_31_60": Decimal("0"),
+            "overdue_61_90": Decimal("0"),
+            "overdue_90_plus": Decimal("0"),
+        }
+
+        for category, data in category_data.items():
+            buckets = data["buckets"]
+            total = sum(buckets.values())
+
+            # Update totals
+            for key in totals:
+                totals[key] += buckets[key]
+
+            categories.append(
+                {
+                    "category": category,
+                    "current_amount": float(buckets["current"]),
+                    "current_amount_display": self._in_lakhs(buckets["current"]),
+                    "overdue_1_30_amount": float(buckets["overdue_1_30"]),
+                    "overdue_1_30_amount_display": self._in_lakhs(
+                        buckets["overdue_1_30"]
+                    ),
+                    "overdue_31_60_amount": float(buckets["overdue_31_60"]),
+                    "overdue_31_60_amount_display": self._in_lakhs(
+                        buckets["overdue_31_60"]
+                    ),
+                    "overdue_61_90_amount": float(buckets["overdue_61_90"]),
+                    "overdue_61_90_amount_display": self._in_lakhs(
+                        buckets["overdue_61_90"]
+                    ),
+                    "overdue_90_plus_amount": float(buckets["overdue_90_plus"]),
+                    "overdue_90_plus_amount_display": self._in_lakhs(
+                        buckets["overdue_90_plus"]
+                    ),
+                    "total_amount": float(total),
+                    "total_amount_display": self._in_lakhs(total),
+                    "bills": data["bills"],
+                }
+            )
+
+        # Sort by total amount descending
+        categories.sort(key=lambda x: x["total_amount"], reverse=True)
+
+        response_data = {
+            "categories": categories,
+            "totals": {
+                "current": float(totals["current"]),
+                "current_display": self._in_lakhs(totals["current"]),
+                "overdue_1_30": float(totals["overdue_1_30"]),
+                "overdue_1_30_display": self._in_lakhs(totals["overdue_1_30"]),
+                "overdue_31_60": float(totals["overdue_31_60"]),
+                "overdue_31_60_display": self._in_lakhs(totals["overdue_31_60"]),
+                "overdue_61_90": float(totals["overdue_61_90"]),
+                "overdue_61_90_display": self._in_lakhs(totals["overdue_61_90"]),
+                "overdue_90_plus": float(totals["overdue_90_plus"]),
+                "overdue_90_plus_display": self._in_lakhs(totals["overdue_90_plus"]),
+                "total": float(sum(totals.values())),
+                "total_display": self._in_lakhs(sum(totals.values())),
+            },
+        }
+
+        serializer = APAgeingByCategorySerializer(data=response_data)
+        serializer.is_valid(raise_exception=True)
+
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class APAgeingByStatusView(APAgeingBaseView):
+    """
+    API view to get AP Ageing grouped by Status.
+
+    Returns statuses with ageing buckets and bill details.
+    """
+
+    def get(self, request, *args, **kwargs):
+        """Calculate and return AP ageing by status"""
+        bills = self._get_queryset(request)
+        today = timezone.now().date()
+
+        if not bills.exists():
+            return Response(
+                {"statuses": [], "totals": {}},
+                status=status.HTTP_200_OK,
+            )
+
+        status_data = defaultdict(
+            lambda: {
+                "buckets": {
+                    "current": Decimal("0"),
+                    "overdue_1_30": Decimal("0"),
+                    "overdue_31_60": Decimal("0"),
+                    "overdue_61_90": Decimal("0"),
+                    "overdue_90_plus": Decimal("0"),
+                },
+                "bills": [],
+            }
+        )
+
+        for bill in bills:
+            bill_status = bill.status
+            bucket = self._calculate_ageing_bucket(bill.due_date, today)
+            balance = bill.balance_amount
+            status_data[bill_status]["buckets"][bucket] += balance
+
+            status_data[bill_status]["bills"].append(
+                {
+                    "bill_id": str(bill.id),
+                    "bill_number": bill.bill_number,
+                    "vendor_name": bill.get_vendor_name(),
+                    "due_date": bill.due_date,
+                    "category": bill.category or "",
+                    "amount": float(balance),
+                    "amount_display": self._in_lakhs(balance),
+                    "status": bill_status,
+                }
+            )
+
+        statuses = []
+        totals = {
+            "current": Decimal("0"),
+            "overdue_1_30": Decimal("0"),
+            "overdue_31_60": Decimal("0"),
+            "overdue_61_90": Decimal("0"),
+            "overdue_90_plus": Decimal("0"),
+        }
+
+        for bill_status, data in status_data.items():
+            buckets = data["buckets"]
+            total = sum(buckets.values())
+
+            # Update totals
+            for key in totals:
+                totals[key] += buckets[key]
+
+            statuses.append(
+                {
+                    "status": bill_status,
+                    "current_amount": float(buckets["current"]),
+                    "current_amount_display": self._in_lakhs(buckets["current"]),
+                    "overdue_1_30_amount": float(buckets["overdue_1_30"]),
+                    "overdue_1_30_amount_display": self._in_lakhs(
+                        buckets["overdue_1_30"]
+                    ),
+                    "overdue_31_60_amount": float(buckets["overdue_31_60"]),
+                    "overdue_31_60_amount_display": self._in_lakhs(
+                        buckets["overdue_31_60"]
+                    ),
+                    "overdue_61_90_amount": float(buckets["overdue_61_90"]),
+                    "overdue_61_90_amount_display": self._in_lakhs(
+                        buckets["overdue_61_90"]
+                    ),
+                    "overdue_90_plus_amount": float(buckets["overdue_90_plus"]),
+                    "overdue_90_plus_amount_display": self._in_lakhs(
+                        buckets["overdue_90_plus"]
+                    ),
+                    "total_amount": float(total),
+                    "total_amount_display": self._in_lakhs(total),
+                    "bills": data["bills"],
+                }
+            )
+
+        # Sort by status order: Pending, Partial, Overdue
+        status_order = {
+            BillsStatusChoices.PENDING: 1,
+            BillsStatusChoices.PARTIAL: 2,
+            BillsStatusChoices.OVERDUE: 3,
+        }
+        statuses.sort(key=lambda x: status_order.get(x["status"], 99))
+
+        response_data = {
+            "statuses": statuses,
+            "totals": {
+                "current": float(totals["current"]),
+                "current_display": self._in_lakhs(totals["current"]),
+                "overdue_1_30": float(totals["overdue_1_30"]),
+                "overdue_1_30_display": self._in_lakhs(totals["overdue_1_30"]),
+                "overdue_31_60": float(totals["overdue_31_60"]),
+                "overdue_31_60_display": self._in_lakhs(totals["overdue_31_60"]),
+                "overdue_61_90": float(totals["overdue_61_90"]),
+                "overdue_61_90_display": self._in_lakhs(totals["overdue_61_90"]),
+                "overdue_90_plus": float(totals["overdue_90_plus"]),
+                "overdue_90_plus_display": self._in_lakhs(totals["overdue_90_plus"]),
+                "total": float(sum(totals.values())),
+                "total_display": self._in_lakhs(sum(totals.values())),
+            },
+        }
+
+        serializer = APAgeingByStatusSerializer(data=response_data)
+        serializer.is_valid(raise_exception=True)
+
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)

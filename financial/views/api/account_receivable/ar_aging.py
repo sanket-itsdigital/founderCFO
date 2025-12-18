@@ -78,12 +78,8 @@ class ARAgeingSummaryView(APIView):
 
         # Get all invoices with outstanding balance (not fully paid or cancelled)
         # Filter by calculated balance: total_amount > paid_amount
-        queryset = (
-            Invoice.objects.filter(company=company)
-            .exclude(
-                status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
-            )
-            .filter(total_amount__gt=F("paid_amount"))
+        queryset = Invoice.objects.filter(company=company).exclude(
+            status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
         )
 
         return queryset
@@ -118,8 +114,8 @@ class ARAgeingSummaryView(APIView):
         # Calculate amounts for each bucket
         for invoice in invoices:
             bucket = self._calculate_ageing_bucket(invoice.due_date, today)
-            # Use balance_amount property (total - paid)
-            balance = invoice.balance_amount
+            # Revenue Invoice does not track paid; use total as outstanding
+            balance = invoice.total_amount
             buckets[bucket] += balance
 
         # Calculate total AR

@@ -18,10 +18,10 @@ from financial.models.account_receivable.write_offs import WriteOff
 from financial.models.account_receivable.audit_trail import AuditTrail
 from financial.models.account_payable import (
     Vendor,
-    Bill,
     BillPayment,
     PaymentMethodChoices,
 )
+from expense.models.bills import Bill
 
 __all__ = [
     # "Invoice",  # Moved to revenue app

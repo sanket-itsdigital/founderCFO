@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from financial.models.account_payable.bills import Bill
+from expense.models.bills import Bill
 from financial.models.account_payable.payment import BillPayment
 from financial.enums import BillsStatusChoices
 from financial.serializers.account_payable.record_payment import (
@@ -20,7 +20,7 @@ from financial.views.api.account_payable.ap_aging import get_company_from_reques
 class RecordPaymentView(APIView):
     """
     API view to record a payment for a bill.
-    
+
     POST: Records payment and updates bill status
     """
 
@@ -54,9 +54,11 @@ class RecordPaymentView(APIView):
         """Record payment for a bill"""
         company = get_company_from_request(request)
         if not company:
-            raise ValidationError({
-                "company": "Company is required. Please provide company_id in query params or ensure you own a company."
-            })
+            raise ValidationError(
+                {
+                    "company": "Company is required. Please provide company_id in query params or ensure you own a company."
+                }
+            )
 
         serializer = RecordPaymentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -64,7 +66,9 @@ class RecordPaymentView(APIView):
         bill_id = serializer.validated_data["bill_id"]
         payment_amount = Decimal(str(serializer.validated_data["amount"]))
         tds_deducted = Decimal(str(serializer.validated_data.get("tds_deducted", 0)))
-        discount_taken = Decimal(str(serializer.validated_data.get("discount_taken", 0)))
+        discount_taken = Decimal(
+            str(serializer.validated_data.get("discount_taken", 0))
+        )
 
         # Get bill
         try:
@@ -75,11 +79,13 @@ class RecordPaymentView(APIView):
         # Validate payment amount
         balance = bill.balance_amount
         total_payment = payment_amount + tds_deducted + discount_taken
-        
+
         if total_payment > balance:
-            raise ValidationError({
-                "amount": f"Payment amount (including TDS and discount) cannot exceed balance due of {self._format_amount_display(balance)}"
-            })
+            raise ValidationError(
+                {
+                    "amount": f"Payment amount (including TDS and discount) cannot exceed balance due of {self._format_amount_display(balance)}"
+                }
+            )
 
         # Create payment record
         payment = BillPayment.objects.create(
@@ -104,6 +110,7 @@ class RecordPaymentView(APIView):
         # Log audit trail if available
         try:
             from financial.models.account_receivable.audit_trail import AuditTrail
+
             AuditTrail.log_action(
                 action="payment",
                 entity_type="bill",
@@ -139,5 +146,6 @@ class RecordPaymentView(APIView):
         response_serializer = RecordPaymentResponseSerializer(data=response_data)
         response_serializer.is_valid(raise_exception=True)
 
-        return Response(response_serializer.validated_data, status=status.HTTP_201_CREATED)
-
+        return Response(
+            response_serializer.validated_data, status=status.HTTP_201_CREATED
+        )

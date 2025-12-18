@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models import Sum
 from django.utils import timezone
 
-from financial.models.account_payable.bills import Bill
+from expense.models.bills import Bill
 
 
 class PaymentMethodChoices(models.TextChoices):
@@ -22,6 +22,7 @@ class PaymentMethodChoices(models.TextChoices):
 
 class BillPayment(BaseModel):
     """Payment records for bills"""
+
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
@@ -71,27 +72,26 @@ class BillPayment(BaseModel):
     def save(self, *args, **kwargs):
         """Update bill paid_amount when payment is saved"""
         super().save(*args, **kwargs)
-        
+
         # Recalculate bill's paid_amount from all payments
-        total_paid = self.bill.payments.aggregate(
-            total=Sum('amount')
-        )['total'] or Decimal("0.00")
-        
+        total_paid = self.bill.payments.aggregate(total=Sum("amount"))[
+            "total"
+        ] or Decimal("0.00")
+
         # Update bill's paid_amount
         self.bill.paid_amount = total_paid
         self.bill.updated_by = self.updated_by
-        self.bill.save(update_fields=['paid_amount', 'updated_by', 'updated_at'])
+        self.bill.save(update_fields=["paid_amount", "updated_by", "updated_at"])
 
     def delete(self, *args, **kwargs):
         """Update bill paid_amount when payment is deleted"""
         bill = self.bill
         super().delete(*args, **kwargs)
-        
-        # Recalculate bill's paid_amount from remaining payments
-        total_paid = bill.payments.aggregate(
-            total=Sum('amount')
-        )['total'] or Decimal("0.00")
-        
-        bill.paid_amount = total_paid
-        bill.save(update_fields=['paid_amount', 'updated_at'])
 
+        # Recalculate bill's paid_amount from remaining payments
+        total_paid = bill.payments.aggregate(total=Sum("amount"))["total"] or Decimal(
+            "0.00"
+        )
+
+        bill.paid_amount = total_paid
+        bill.save(update_fields=["paid_amount", "updated_at"])
