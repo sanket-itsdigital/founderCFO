@@ -16,15 +16,22 @@ class Migration(migrations.Migration):
         migrations.DeleteModel(
             name="Bill",
         ),
-        # Then update the field reference to expense.Bill
-        # Using a string reference that Django will resolve
-        migrations.AlterField(
-            model_name="billpayment",
-            name="bill",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="payments",
-                to="expense.Bill",
-            ),
+        # Alter the field reference using SeparateDatabaseAndState
+        # This ensures we only update the state, not the database
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AlterField(
+                    model_name="billpayment",
+                    name="bill",
+                    field=models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="payments",
+                        to="expense.Bill",
+                    ),
+                ),
+            ],
+            # No database operations - SQLite doesn't enforce FK constraints
+            # The table structure doesn't need to change
+            database_operations=[],
         ),
     ]
