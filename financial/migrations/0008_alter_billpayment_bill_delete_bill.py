@@ -7,17 +7,21 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('expense', '0001_initial'),
-        ('financial', '0007_remove_bill_amount_bill_branch_bill_branch_gstin_and_more'),
+        ("expense", "0001_initial"),
+        ("financial", "0007_remove_bill_amount_bill_branch_bill_branch_gstin_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='billpayment',
-            name='bill',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='payments', to='expense.bill'),
+            model_name="billpayment",
+            name="bill",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="payments",
+                to="expense.Bill",
+            ),
         ),
         migrations.DeleteModel(
-            name='Bill',
+            name="Bill",
         ),
     ]

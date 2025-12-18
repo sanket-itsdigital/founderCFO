@@ -4,10 +4,16 @@ from expense.models.recurring import (
     RecurringExpenseFrequencyChoices,
     RecurringExpenseStatusChoices,
 )
+from expense.models.budget import (
+    ExpenseBudget,
+    BudgetPeriodTypeChoices,
+)
 
 __all__ = [
     "Bill",
     "RecurringExpense",
     "RecurringExpenseFrequencyChoices",
     "RecurringExpenseStatusChoices",
+    "ExpenseBudget",
+    "BudgetPeriodTypeChoices",
 ]
