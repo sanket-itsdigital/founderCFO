@@ -7,11 +7,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("expense", "0001_initial"),
+        ("expense", "0001_initial"),  # Ensure expense app is initialized
         ("financial", "0007_remove_bill_amount_bill_branch_bill_branch_gstin_and_more"),
     ]
 
     operations = [
+        # Delete the old Bill model from state first
+        migrations.DeleteModel(
+            name="Bill",
+        ),
+        # Then update the field reference to expense.Bill
+        # Using a string reference that Django will resolve
         migrations.AlterField(
             model_name="billpayment",
             name="bill",
@@ -20,8 +26,5 @@ class Migration(migrations.Migration):
                 related_name="payments",
                 to="expense.Bill",
             ),
-        ),
-        migrations.DeleteModel(
-            name="Bill",
         ),
     ]

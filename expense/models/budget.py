@@ -152,3 +152,4 @@ class ExpenseBudget(BaseModel):
             return "On Track"
         else:
             return "Under Budget"
+

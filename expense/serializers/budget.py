@@ -112,3 +112,4 @@ class ExpenseBudgetChoicesSerializer(serializers.Serializer):
         child=serializers.DictField(),
         help_text="Available period types with their display names",
     )
+
