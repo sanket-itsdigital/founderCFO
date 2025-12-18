@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("expense", "0003_bill"),  # Ensure expense.Bill exists in migration state
+        ("expense", "0002_bill"),  # Ensure expense.Bill exists in migration state
         ("financial", "0007_remove_bill_amount_bill_branch_bill_branch_gstin_and_more"),
     ]
 
