@@ -1,7 +1,7 @@
 from collections import defaultdict
 from decimal import Decimal
 
-from django.db.models import F, Count, Avg
+from django.db.models import F, Count, Avg, Sum
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from accounts.models import Company
 from revenue.models.invoice import Invoice
 from financial.models.account_receivable.credit import Credit
+from financial.models.account_receivable.reconcile import BankTransaction
 from financial.enums import InvoicesStatusChoices, RiskLevelChoices
 from financial.serializers.account_receivable.customer_balance import (
     CustomerBalanceSummarySerializer,
@@ -74,12 +75,8 @@ class CustomerBalanceSummaryView(APIView):
         default_credit_limit = Decimal("500000.00")  # 5 lakh default
 
         # Get all outstanding invoices (not paid or cancelled)
-        invoices = (
-            Invoice.objects.filter(company=company)
-            .exclude(
-                status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
-            )
-            .filter(total_amount__gt=F("paid_amount"))
+        invoices = Invoice.objects.filter(company=company).exclude(
+            status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
         )
 
         # Group invoices by customer
@@ -92,11 +89,22 @@ class CustomerBalanceSummaryView(APIView):
         )
 
         for invoice in invoices:
-            customer_name = invoice.customer_name
-            balance = invoice.balance_amount
-            customer_data[customer_name]["outstanding"] += balance
-            customer_data[customer_name]["invoices"].append(invoice)
-            customer_data[customer_name]["invoice_dates"].append(invoice.invoice_date)
+            # Calculate paid amount from matched transactions
+            paid_amount = invoice.matched_transactions.aggregate(total=Sum("amount"))[
+                "total"
+            ] or Decimal("0.00")
+
+            # Calculate balance (outstanding amount)
+            balance = invoice.total_amount - paid_amount
+
+            # Only include invoices with outstanding balance
+            if balance > 0:
+                customer_name = invoice.customer_name
+                customer_data[customer_name]["outstanding"] += balance
+                customer_data[customer_name]["invoices"].append(invoice)
+                customer_data[customer_name]["invoice_dates"].append(
+                    invoice.invoice_date
+                )
 
         # Get or create Credit records for all customers
         customers_list = []
@@ -200,16 +208,22 @@ class CustomerBalanceDetailView(APIView):
         today = timezone.now().date()
 
         # Get all outstanding invoices for this customer
-        invoices = (
-            Invoice.objects.filter(company=company, customer_name=customer_name)
-            .exclude(
-                status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
-            )
-            .filter(total_amount__gt=F("paid_amount"))
+        invoices = Invoice.objects.filter(
+            company=company, customer_name=customer_name
+        ).exclude(
+            status__in=[InvoicesStatusChoices.PAID, InvoicesStatusChoices.CANCELLED]
         )
 
-        # Calculate outstanding amount
-        outstanding = sum(invoice.balance_amount for invoice in invoices)
+        # Calculate outstanding amount from invoices with balance > 0
+        outstanding = Decimal("0.00")
+        for invoice in invoices:
+            # Calculate paid amount from matched transactions
+            paid_amount = invoice.matched_transactions.aggregate(total=Sum("amount"))[
+                "total"
+            ] or Decimal("0.00")
+            balance = invoice.total_amount - paid_amount
+            if balance > 0:
+                outstanding += balance
 
         # Calculate average days outstanding
         avg_days = 0
