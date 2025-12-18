@@ -35,6 +35,11 @@ class ExpenseDashboardView(APIView):
       * Monthly Trend: Last 6 months with MoM change, avg, high, low
     - Query parameters:
       * months (optional): Number of months for trends (default: 6)
+      * date_filter (optional): Date filter type - 'today', 'yesterday', 'this_week', 'previous_week',
+                                'this_month', 'previous_month', 'this_quarter', 'previous_quarter',
+                                'this_fy', 'fy_to_date', 'previous_fy', 'all_data', 'custom'
+      * start_date (optional): Start date for 'custom' filter (format: YYYY-MM-DD)
+      * end_date (optional): End date for 'custom' filter (format: YYYY-MM-DD)
     """
 
     permission_classes = [IsAuthenticated]
@@ -81,6 +86,133 @@ class ExpenseDashboardView(APIView):
             bill.eligibility and "not eligible" in bill.eligibility.lower()
         )
         return has_gstin and has_gst and not is_marked_ineligible
+
+    @staticmethod
+    def _get_fiscal_year_dates(date):
+        """Get fiscal year start and end dates (April 1 to March 31) for a given date"""
+        if date.month >= 4:
+            # Current fiscal year
+            fy_start = datetime(date.year, 4, 1).date()
+            fy_end = datetime(date.year + 1, 3, 31).date()
+        else:
+            # Previous fiscal year
+            fy_start = datetime(date.year - 1, 4, 1).date()
+            fy_end = datetime(date.year, 3, 31).date()
+        return fy_start, fy_end
+
+    def _get_date_range(self, date_filter, start_date=None, end_date=None):
+        """
+        Calculate date range based on filter type.
+        Returns (start_date, end_date) tuple.
+        """
+        today = timezone.now().date()
+
+        if date_filter == "today":
+            return today, today
+
+        elif date_filter == "yesterday":
+            yesterday = today - timedelta(days=1)
+            return yesterday, yesterday
+
+        elif date_filter == "this_week":
+            # Monday to Sunday of current week
+            days_since_monday = today.weekday()
+            week_start = today - timedelta(days=days_since_monday)
+            week_end = week_start + timedelta(days=6)
+            return week_start, week_end
+
+        elif date_filter == "previous_week":
+            days_since_monday = today.weekday()
+            current_week_start = today - timedelta(days=days_since_monday)
+            previous_week_start = current_week_start - timedelta(days=7)
+            previous_week_end = previous_week_start + timedelta(days=6)
+            return previous_week_start, previous_week_end
+
+        elif date_filter == "this_month":
+            month_start = today.replace(day=1)
+            last_day = monthrange(today.year, today.month)[1]
+            month_end = today.replace(day=last_day)
+            return month_start, month_end
+
+        elif date_filter == "previous_month":
+            first_day_current_month = today.replace(day=1)
+            last_day_previous_month = first_day_current_month - timedelta(days=1)
+            previous_month_start = last_day_previous_month.replace(day=1)
+            return previous_month_start, last_day_previous_month
+
+        elif date_filter == "this_quarter":
+            current_month = today.month
+            if current_month <= 3:
+                quarter_start = datetime(today.year, 1, 1).date()
+                quarter_end = datetime(today.year, 3, 31).date()
+            elif current_month <= 6:
+                quarter_start = datetime(today.year, 4, 1).date()
+                quarter_end = datetime(today.year, 6, 30).date()
+            elif current_month <= 9:
+                quarter_start = datetime(today.year, 7, 1).date()
+                quarter_end = datetime(today.year, 9, 30).date()
+            else:
+                quarter_start = datetime(today.year, 10, 1).date()
+                quarter_end = datetime(today.year, 12, 31).date()
+            return quarter_start, quarter_end
+
+        elif date_filter == "previous_quarter":
+            current_month = today.month
+            if current_month <= 3:
+                # Previous quarter is Q4 of last year
+                quarter_start = datetime(today.year - 1, 10, 1).date()
+                quarter_end = datetime(today.year - 1, 12, 31).date()
+            elif current_month <= 6:
+                quarter_start = datetime(today.year, 1, 1).date()
+                quarter_end = datetime(today.year, 3, 31).date()
+            elif current_month <= 9:
+                quarter_start = datetime(today.year, 4, 1).date()
+                quarter_end = datetime(today.year, 6, 30).date()
+            else:
+                quarter_start = datetime(today.year, 7, 1).date()
+                quarter_end = datetime(today.year, 9, 30).date()
+            return quarter_start, quarter_end
+
+        elif date_filter == "this_fy":
+            # Current fiscal year (April 1 to March 31)
+            fy_start, fy_end = self._get_fiscal_year_dates(today)
+            return fy_start, fy_end
+
+        elif date_filter == "fy_to_date":
+            # Fiscal year start to today
+            fy_start, _ = self._get_fiscal_year_dates(today)
+            return fy_start, today
+
+        elif date_filter == "previous_fy":
+            # Previous fiscal year
+            if today.month >= 4:
+                fy_start = datetime(today.year - 1, 4, 1).date()
+                fy_end = datetime(today.year, 3, 31).date()
+            else:
+                fy_start = datetime(today.year - 2, 4, 1).date()
+                fy_end = datetime(today.year - 1, 3, 31).date()
+            return fy_start, fy_end
+
+        elif date_filter == "custom":
+            # Use provided start_date and end_date
+            if start_date and end_date:
+                try:
+                    if isinstance(start_date, str):
+                        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+                    if isinstance(end_date, str):
+                        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+                    return start_date, end_date
+                except ValueError:
+                    # Invalid date format, return None to indicate no filter
+                    return None, None
+            return None, None
+
+        elif date_filter == "all_data" or not date_filter:
+            # No date filter - return all data
+            return None, None
+
+        # Default: no filter
+        return None, None
 
     def get(self, request, *args, **kwargs):
         """Get all dashboard data in one response"""
@@ -130,6 +262,9 @@ class ExpenseDashboardView(APIView):
 
         # Get query parameters
         months = int(request.query_params.get("months", 6))
+        date_filter = request.query_params.get("date_filter", "all_data")
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
 
         # Get all bills (excluding cancelled)
         bills = (
@@ -137,6 +272,15 @@ class ExpenseDashboardView(APIView):
             .exclude(status=BillsStatusChoices.CANCELLED)
             .select_related("vendor")
         )
+
+        # Apply date filter if specified
+        filter_start_date, filter_end_date = self._get_date_range(
+            date_filter, start_date, end_date
+        )
+        if filter_start_date is not None and filter_end_date is not None:
+            bills = bills.filter(
+                bill_date__gte=filter_start_date, bill_date__lte=filter_end_date
+            )
 
         # Calculate KPIs
         total_opex = sum(bill.total for bill in bills)
@@ -504,4 +648,3 @@ class ExpenseDashboardView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-

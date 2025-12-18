@@ -208,7 +208,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://rabbitstay.com",
     "https://rabbitstays.com",
     "https://cfo-ten.vercel.app",
-    "https://foundrcfo.netlify.app"
+    "https://foundrcfo.netlify.app",
+    "https://foundrcfo-webapp.netlify.app",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -218,5 +219,6 @@ CSRF_TRUSTED_ORIGINS = [
     "https://rabbitstay.com",
     "https://www.rabbitstay.com",
     "https://cfo-ten.vercel.app",
-    "https://foundrcfo.netlify.app"
+    "https://foundrcfo.netlify.app",
+    "https://foundrcfo-webapp.netlify.app",
 ]
