@@ -32,6 +32,11 @@ from expense.views.api.recurring import (
     RecurringExpenseChoicesView,
 )
 from expense.views.api.dashboard import ExpenseDashboardView
+from expense.views.api.budget import (
+    BudgetManagementView,
+    BudgetRetrieveUpdateDestroyView,
+    BudgetChoicesView,
+)
 
 app_name = "expense"
 
@@ -144,5 +149,23 @@ urlpatterns = [
         "dashboard/",
         ExpenseDashboardView.as_view(),
         name="expense-dashboard",
+    ),
+    # Budget Management - Combined API (KPIs, Chart, Details) + Create
+    path(
+        "budget/",
+        BudgetManagementView.as_view(),
+        name="budget-management",
+    ),
+    # Budget Choices (for dropdowns)
+    path(
+        "budget/choices/",
+        BudgetChoicesView.as_view(),
+        name="budget-choices",
+    ),
+    # Budget - Retrieve, Update, Delete
+    path(
+        "budget/<uuid:id>/",
+        BudgetRetrieveUpdateDestroyView.as_view(),
+        name="budget-detail",
     ),
 ]
