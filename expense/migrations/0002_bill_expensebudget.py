@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("accounts", "0006_company_face_value_per_share"),
-        ("expense", "0001_initial"),
+        ("expense", "0003_bill"),  # Depend on migration that adds Bill model
         ("financial", "0008_alter_billpayment_bill_delete_bill"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
