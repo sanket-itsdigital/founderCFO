@@ -220,8 +220,15 @@ class HRDashboardView(APIView):
         cost_per_hire = self._calculate_cost_per_hire(company)
 
         # Calculate HR Health
-        hr_health_score = self._calculate_hr_health_score(turnover_rate, retention_rate)
-        hr_health_status = self._get_hr_health_status(hr_health_score)
+        # If there are no employees, health score should be 0 (not applicable)
+        if total_headcount == 0:
+            hr_health_score = Decimal("0.00")
+            hr_health_status = "N/A"
+        else:
+            hr_health_score = self._calculate_hr_health_score(
+                turnover_rate, retention_rate
+            )
+            hr_health_status = self._get_hr_health_status(hr_health_score)
 
         # Define targets
         TURNOVER_TARGET = Decimal("15.0")
@@ -326,7 +333,7 @@ class HRDashboardView(APIView):
                 "hr_health": {
                     "score": hr_health_score,
                     "status": hr_health_status,
-                    "display": f"{hr_health_score}%",
+                    "display": f"{hr_health_score}%" if total_headcount > 0 else "N/A",
                 },
                 "total_headcount": total_headcount,
                 "turnover_rate": turnover_rate,
