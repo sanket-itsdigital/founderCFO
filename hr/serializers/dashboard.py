@@ -23,7 +23,9 @@ class HighLevelKPISerializer(serializers.Serializer):
 
     hr_health = HRHealthSerializer()
     total_headcount = serializers.IntegerField()
-    turnover_rate = serializers.DecimalField(max_digits=5, decimal_places=2)
+    turnover_rate = serializers.DecimalField(
+        max_digits=5, decimal_places=2, allow_null=True
+    )
     time_to_hire = serializers.IntegerField(allow_null=True)
     cost_per_hire = serializers.DecimalField(
         max_digits=12, decimal_places=2, allow_null=True
