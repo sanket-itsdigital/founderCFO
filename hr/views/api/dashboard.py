@@ -212,23 +212,68 @@ class HRDashboardView(APIView):
 
         total_headcount = active_headcounts.count()
 
-        # Calculate metrics
-        turnover_rate = self._calculate_turnover_rate(company)
-        retention_rate = self._calculate_retention_rate(company)
-        avg_tenure = self._calculate_average_tenure(active_headcounts)
-        time_to_hire = self._calculate_time_to_hire(company)
-        cost_per_hire = self._calculate_cost_per_hire(company)
-
-        # Calculate HR Health
-        # If there are no employees, health score should be 0 (not applicable)
+        # If there are no employees, set all metrics to None/N/A
         if total_headcount == 0:
+            turnover_rate = None
+            retention_rate = None
+            avg_tenure = None
+            time_to_hire = None
+            cost_per_hire = None
             hr_health_score = Decimal("0.00")
             hr_health_status = "N/A"
+            female_percentage = None
+            male_percentage = None
+            male_count = 0
+            female_count = 0
         else:
+            # Calculate metrics
+            turnover_rate = self._calculate_turnover_rate(company)
+            retention_rate = self._calculate_retention_rate(company)
+            avg_tenure = self._calculate_average_tenure(active_headcounts)
+            time_to_hire = self._calculate_time_to_hire(company)
+            cost_per_hire = self._calculate_cost_per_hire(company)
+
+            # Calculate HR Health
             hr_health_score = self._calculate_hr_health_score(
                 turnover_rate, retention_rate
             )
             hr_health_status = self._get_hr_health_status(hr_health_score)
+
+            # Gender Diversity
+            gender_data = (
+                active_headcounts.values("gender")
+                .annotate(count=Count("id"))
+                .order_by("-count")
+            )
+
+            male_count = 0
+            female_count = 0
+            for item in gender_data:
+                if item["gender"] == Gender.MALE:
+                    male_count = item["count"]
+                elif item["gender"] == Gender.FEMALE:
+                    female_count = item["count"]
+
+            total_gender = male_count + female_count
+            female_percentage = (
+                self._round_decimal(
+                    (Decimal(str(female_count)) / Decimal(str(total_gender)))
+                    * Decimal("100"),
+                    decimal_places=1,
+                )
+                if total_gender > 0
+                else Decimal("0.00")
+            )
+
+            male_percentage = (
+                self._round_decimal(
+                    (Decimal(str(male_count)) / Decimal(str(total_gender)))
+                    * Decimal("100"),
+                    decimal_places=1,
+                )
+                if total_gender > 0
+                else Decimal("0.00")
+            )
 
         # Define targets
         TURNOVER_TARGET = Decimal("15.0")
@@ -252,42 +297,6 @@ class HRDashboardView(APIView):
                     return "Below target"
                 else:
                     return "Above target"
-
-        # Gender Diversity
-        gender_data = (
-            active_headcounts.values("gender")
-            .annotate(count=Count("id"))
-            .order_by("-count")
-        )
-
-        male_count = 0
-        female_count = 0
-        for item in gender_data:
-            if item["gender"] == Gender.MALE:
-                male_count = item["count"]
-            elif item["gender"] == Gender.FEMALE:
-                female_count = item["count"]
-
-        total_gender = male_count + female_count
-        female_percentage = (
-            self._round_decimal(
-                (Decimal(str(female_count)) / Decimal(str(total_gender)))
-                * Decimal("100"),
-                decimal_places=1,
-            )
-            if total_gender > 0
-            else Decimal("0.00")
-        )
-
-        male_percentage = (
-            self._round_decimal(
-                (Decimal(str(male_count)) / Decimal(str(total_gender)))
-                * Decimal("100"),
-                decimal_places=1,
-            )
-            if total_gender > 0
-            else Decimal("0.00")
-        )
 
         # Workforce Composition by Employment Type
         employment_data = (
@@ -336,9 +345,9 @@ class HRDashboardView(APIView):
                     "display": f"{hr_health_score}%" if total_headcount > 0 else "N/A",
                 },
                 "total_headcount": total_headcount,
-                "turnover_rate": turnover_rate,
+                "turnover_rate": turnover_rate if turnover_rate is not None else None,
                 "time_to_hire": time_to_hire,
-                "cost_per_hire": cost_per_hire,
+                "cost_per_hire": cost_per_hire if cost_per_hire is not None else None,
             },
             "detailed_metrics": {
                 "total_headcount": total_headcount,
@@ -348,7 +357,9 @@ class HRDashboardView(APIView):
                     "status": get_metric_status(
                         turnover_rate, TURNOVER_TARGET, higher_is_better=False
                     ),
-                    "display": f"{turnover_rate}%",
+                    "display": (
+                        f"{turnover_rate}%" if turnover_rate is not None else "N/A"
+                    ),
                 },
                 "retention_rate": {
                     "value": retention_rate,
@@ -356,7 +367,9 @@ class HRDashboardView(APIView):
                     "status": get_metric_status(
                         retention_rate, RETENTION_TARGET, higher_is_better=True
                     ),
-                    "display": f"{retention_rate}%",
+                    "display": (
+                        f"{retention_rate}%" if retention_rate is not None else "N/A"
+                    ),
                 },
                 "cost_per_hire": {
                     "value": cost_per_hire,
@@ -364,7 +377,11 @@ class HRDashboardView(APIView):
                     "status": get_metric_status(
                         cost_per_hire, COST_PER_HIRE_TARGET, higher_is_better=False
                     ),
-                    "display": self._format_cost_per_hire(cost_per_hire),
+                    "display": (
+                        self._format_cost_per_hire(cost_per_hire)
+                        if cost_per_hire is not None
+                        else "N/A"
+                    ),
                 },
                 "time_to_hire": {
                     "value": Decimal(str(time_to_hire)) if time_to_hire else None,
@@ -385,7 +402,11 @@ class HRDashboardView(APIView):
                         GENDER_DIVERSITY_TARGET,
                         higher_is_better=True,
                     ),
-                    "display": f"{female_percentage}%",
+                    "display": (
+                        f"{female_percentage}%"
+                        if female_percentage is not None
+                        else "N/A"
+                    ),
                 },
                 "hr_cost_ratio": "N/A",  # Placeholder - would need total company costs
             },
@@ -395,16 +416,28 @@ class HRDashboardView(APIView):
                     {
                         "gender": "Male",
                         "count": male_count,
-                        "percentage": male_percentage,
+                        "percentage": (
+                            male_percentage
+                            if male_percentage is not None
+                            else Decimal("0.00")
+                        ),
                     },
                     {
                         "gender": "Female",
                         "count": female_count,
-                        "percentage": female_percentage,
+                        "percentage": (
+                            female_percentage
+                            if female_percentage is not None
+                            else Decimal("0.00")
+                        ),
                     },
                 ],
                 "target_female_percentage": GENDER_DIVERSITY_TARGET,
-                "current_female_percentage": female_percentage,
+                "current_female_percentage": (
+                    female_percentage
+                    if female_percentage is not None
+                    else Decimal("0.00")
+                ),
             },
         }
 
