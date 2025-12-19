@@ -72,18 +72,22 @@ class ComplianceDashboardView(APIView):
 
         # Compliance Health Score (0-100 scale)
         # Based on completion rate, overdue ratio, and critical tasks ratio
-        overdue_ratio = (overdue_tasks / total_tasks) if total_tasks > 0 else 0
-        critical_ratio = (critical_tasks / total_tasks) if total_tasks > 0 else 0
+        # If there are no tasks, health score should be 0 (not applicable)
+        if total_tasks == 0:
+            health_score = 0.0
+        else:
+            overdue_ratio = (overdue_tasks / total_tasks) if total_tasks > 0 else 0
+            critical_ratio = (critical_tasks / total_tasks) if total_tasks > 0 else 0
 
-        health_score = max(
-            0,
-            min(
-                100,
-                completion_rate * 0.5  # 50% weight on completion
-                + (1 - overdue_ratio * 2) * 30  # 30% weight on overdue (penalized)
-                + (1 - critical_ratio) * 20,  # 20% weight on critical tasks
-            ),
-        )
+            health_score = max(
+                0,
+                min(
+                    100,
+                    completion_rate * 0.5  # 50% weight on completion
+                    + (1 - overdue_ratio * 2) * 30  # 30% weight on overdue (penalized)
+                    + (1 - critical_ratio) * 20,  # 20% weight on critical tasks
+                ),
+            )
 
         # Financial exposure
         all_payments = CompliancePayments.objects.all()
