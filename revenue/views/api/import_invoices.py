@@ -38,41 +38,29 @@ class RevenueInvoiceImportView(APIView):
     """
     Excel Import API for Revenue Invoices
     Accepts an Excel file and imports invoice data into the database.
-
-    Expected Excel columns (all fields from revenue invoice model):
-    1. invoice_number (required)
-    2. invoice_date (required)
-    3. due_date (required)
-    4. customer_name (required)
-    5. customer_gstin
-    6. product_name (required)
-    7. service_type
-    8. hsn_sac_code
-    9. place_of_supply
-    10. quantity
-    11. unit_price
-    12. taxable_value
-    13. cgst_rate
-    14. cgst_amount
-    15. sgst_rate
-    16. sgst_amount
-    17. igst_rate
-    18. igst_amount
-    19. total_amount (required)
-    20. status
-    21. payment_terms
-    22. salesperson
-    23. region
-    24. territory
-    25. department
-    26. branch
-    27. branch_gstin
-    28. project_id
-    29. project_name
-    30. billing_type
-    31. billable_hours
-    32. is_recurring
-    33. notes
+    
+    Expected Excel file structure:
+    - Sheet name: "invoice register" (case insensitive)
+    
+    Expected Excel columns:
+    1. invoice (required) - maps to invoice_number
+    2. date (required) - maps to invoice_date
+    3. duedate (required) - maps to due_date
+    4. customer (required) - maps to customer_name
+    5. product (required) - maps to product_name
+    6. Service Type - maps to service_type
+    7. category - stored in notes (no direct field)
+    8. location - maps to place_of_supply
+    9. department - maps to department
+    10. amount - maps to taxable_value
+    11. Cgst - maps to cgst_amount
+    12. sgst - maps to sgst_amount
+    13. igst - maps to igst_amount
+    14. total (required) - maps to total_amount
+    15. paid - stored in notes (no direct field)
+    16. balance - stored in notes (no direct field)
+    17. status - maps to status
+    18. is_recurring - maps to is_recurring
     """
 
     permission_classes = [IsAuthenticated]
@@ -80,18 +68,21 @@ class RevenueInvoiceImportView(APIView):
     # Mapping from Excel column names (various formats) to model field names
     EXCEL_TO_FIELD_MAPPING = {
         # Invoice Number variations
+        "invoice": "invoice_number",
         "invoice number": "invoice_number",
         "invoice_number": "invoice_number",
         "invoicenumber": "invoice_number",
         # Invoice Date variations
+        "date": "invoice_date",
         "invoice date": "invoice_date",
         "invoice_date": "invoice_date",
         "invoicedate": "invoice_date",
         # Due Date variations
+        "duedate": "due_date",
         "due date": "due_date",
         "due_date": "due_date",
-        "duedate": "due_date",
         # Customer Name variations
+        "customer": "customer_name",
         "customer name": "customer_name",
         "customer_name": "customer_name",
         "customername": "customer_name",
@@ -100,6 +91,7 @@ class RevenueInvoiceImportView(APIView):
         "customer_gstin": "customer_gstin",
         "customergstin": "customer_gstin",
         # Product Name variations
+        "product": "product_name",
         "product name": "product_name",
         "product_name": "product_name",
         "productname": "product_name",
@@ -107,30 +99,32 @@ class RevenueInvoiceImportView(APIView):
         "service type": "service_type",
         "service_type": "service_type",
         "servicetype": "service_type",
-        # HSN/SAC Code variations
-        "hsn/sac code": "hsn_sac_code",
-        "hsn_sac_code": "hsn_sac_code",
-        "hsnsaccode": "hsn_sac_code",
-        "hsn sac code": "hsn_sac_code",
-        # Place of Supply variations
+        # Category (stored in notes if provided, no direct field)
+        "category": "category",
+        # Location/Place of Supply variations
+        "location": "place_of_supply",
         "place of supply": "place_of_supply",
         "place_of_supply": "place_of_supply",
         "placeofsupply": "place_of_supply",
+        # Department
+        "department": "department",
+        # Amount/Taxable Value variations
+        "amount": "taxable_value",
+        "taxable value": "taxable_value",
+        "taxable_value": "taxable_value",
+        "taxablevalue": "taxable_value",
         # Quantity
         "quantity": "quantity",
         # Unit Price variations
         "unit price": "unit_price",
         "unit_price": "unit_price",
         "unitprice": "unit_price",
-        # Taxable Value variations
-        "taxable value": "taxable_value",
-        "taxable_value": "taxable_value",
-        "taxablevalue": "taxable_value",
         # CGST Rate variations
         "cgst rate": "cgst_rate",
         "cgst_rate": "cgst_rate",
         "cgstrate": "cgst_rate",
         # CGST Amount variations
+        "cgst": "cgst_amount",
         "cgst amount": "cgst_amount",
         "cgst_amount": "cgst_amount",
         "cgstamount": "cgst_amount",
@@ -139,6 +133,7 @@ class RevenueInvoiceImportView(APIView):
         "sgst_rate": "sgst_rate",
         "sgstrate": "sgst_rate",
         # SGST Amount variations
+        "sgst": "sgst_amount",
         "sgst amount": "sgst_amount",
         "sgst_amount": "sgst_amount",
         "sgstamount": "sgst_amount",
@@ -147,13 +142,18 @@ class RevenueInvoiceImportView(APIView):
         "igst_rate": "igst_rate",
         "igstrate": "igst_rate",
         # IGST Amount variations
+        "igst": "igst_amount",
         "igst amount": "igst_amount",
         "igst_amount": "igst_amount",
         "igstamount": "igst_amount",
         # Total Amount variations
+        "total": "total_amount",
         "total amount": "total_amount",
         "total_amount": "total_amount",
         "totalamount": "total_amount",
+        # Paid and Balance (no direct fields, will be stored in notes if needed)
+        "paid": "paid",
+        "balance": "balance",
         # Status
         "status": "status",
         # Payment Terms variations
@@ -166,14 +166,17 @@ class RevenueInvoiceImportView(APIView):
         "region": "region",
         # Territory
         "territory": "territory",
-        # Department
-        "department": "department",
         # Branch
         "branch": "branch",
         # Branch GSTIN variations
         "branch gstin": "branch_gstin",
         "branch_gstin": "branch_gstin",
         "branchgstin": "branch_gstin",
+        # HSN/SAC Code variations
+        "hsn/sac code": "hsn_sac_code",
+        "hsn_sac_code": "hsn_sac_code",
+        "hsnsaccode": "hsn_sac_code",
+        "hsn sac code": "hsn_sac_code",
         # Project ID variations
         "project id": "project_id",
         "project_id": "project_id",
@@ -296,8 +299,19 @@ class RevenueInvoiceImportView(APIView):
                 "The Excel file does not contain any sheets."
             )
 
-        # Use the first sheet
-        sheet = workbook[workbook.sheetnames[0]]
+        # Find the "invoice register" sheet (case insensitive)
+        sheet = None
+        sheet_name = None
+        for name in workbook.sheetnames:
+            if name.strip().lower() == "invoice register":
+                sheet = workbook[name]
+                sheet_name = name
+                break
+        
+        if sheet is None:
+            raise RevenueInvoiceImportError(
+                f"Sheet 'invoice register' not found. Available sheets: {', '.join(workbook.sheetnames)}"
+            )
 
         if sheet.max_row < 2:
             raise RevenueInvoiceImportError("The sheet does not contain any data rows.")
@@ -643,8 +657,30 @@ class RevenueInvoiceImportView(APIView):
             )
 
         # Additional Information
+        notes_parts = []
         if "notes" in row_payload and row_payload["notes"]:
-            invoice_data["notes"] = str(row_payload["notes"]).strip()
+            notes_parts.append(str(row_payload["notes"]).strip())
+        
+        # Handle category (no direct field, store in notes)
+        if "category" in row_payload and row_payload["category"]:
+            category_value = str(row_payload["category"]).strip()
+            if category_value:
+                notes_parts.append(f"Category: {category_value}")
+        
+        # Handle paid amount (no direct field, store in notes)
+        if "paid" in row_payload and row_payload["paid"] is not None:
+            paid_value = self._parse_decimal(row_payload["paid"])
+            if paid_value > 0:
+                notes_parts.append(f"Paid: {paid_value}")
+        
+        # Handle balance (no direct field, store in notes)
+        if "balance" in row_payload and row_payload["balance"] is not None:
+            balance_value = self._parse_decimal(row_payload["balance"])
+            if balance_value != 0:
+                notes_parts.append(f"Balance: {balance_value}")
+        
+        if notes_parts:
+            invoice_data["notes"] = " | ".join(notes_parts)
 
         return invoice_data
 
