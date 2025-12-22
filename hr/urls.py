@@ -9,6 +9,9 @@ from hr.views.api.headcount_breakdown import (
     HeadcountByLocationView,
     HeadcountEmployeesView,
 )
+from hr.views.api.import_headcount import HeadcountImportView
+from hr.views.api.import_recruitment import RecruitmentImportView
+from hr.views.api.import_budget import BudgetImportView
 from hr.views.api.turnover import TurnoverView
 from hr.views.api.recruitment import RecruitmentView
 from hr.views.api.budget import BudgetView
@@ -40,6 +43,11 @@ urlpatterns = [
         HeadcountEmployeesView.as_view(),
         name="headcount-employees",
     ),
+    path(
+        "headcount/import/",
+        HeadcountImportView.as_view(),
+        name="headcount-import",
+    ),
     # Turnover API
     path(
         "turnover/",
@@ -50,6 +58,11 @@ urlpatterns = [
         "recruitment/",
         RecruitmentView.as_view(),
         name="recruitment",
+    ),
+    path(
+        "recruitment/import/",
+        RecruitmentImportView.as_view(),
+        name="recruitment-import",
     ),
     path(
         "compensation/overview/",
@@ -65,5 +78,10 @@ urlpatterns = [
         "budget/",
         BudgetView.as_view(),
         name="budget",
+    ),
+    path(
+        "budget/import/",
+        BudgetImportView.as_view(),
+        name="budget-import",
     ),
 ]

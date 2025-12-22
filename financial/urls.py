@@ -45,11 +45,11 @@ urlpatterns = [
         InvoiceRetrieveUpdateDestroyView.as_view(),
         name="invoice-detail",
     ),
-    path(
-        "invoices/import/",
-        InvoiceImportView.as_view(),
-        name="invoice-import",
-    ),
+    # path(
+    #     "invoices/import/",
+    #     InvoiceImportView.as_view(),
+    #     name="invoice-import",
+    # ),
     # Customer Balance Summary
     path(
         "customers/balance-summary/",
@@ -112,11 +112,11 @@ urlpatterns = [
         APAgeingByStatusView.as_view(),
         name="ap-ageing-by-status",
     ),
-    path(
-        "payable/bills/import/",
-        BillImportView.as_view(),
-        name="bill-import",
-    ),
+    # path(
+    #     "payable/bills/import/",
+    #     BillImportView.as_view(),
+    #     name="bill-import",
+    # ),
     path(
         "payable/vendors/balance-summary/",
         VendorBalanceSummaryView.as_view(),
