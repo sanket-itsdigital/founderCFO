@@ -210,6 +210,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://cfo-ten.vercel.app",
     "https://foundrcfo.netlify.app",
     "https://foundrcfo-webapp.netlify.app",
+    "https://foundrcfo-web.netlify.app",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -221,4 +222,5 @@ CSRF_TRUSTED_ORIGINS = [
     "https://cfo-ten.vercel.app",
     "https://foundrcfo.netlify.app",
     "https://foundrcfo-webapp.netlify.app",
+    "https://foundrcfo-web.netlify.app",
 ]
