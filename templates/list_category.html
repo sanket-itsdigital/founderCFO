@@ -89,6 +89,14 @@ Category{% endblock title %} {% block extra_css %}
             class="page-title-box d-sm-flex align-items-center justify-content-between"
           >
             <h4 class="mb-sm-0 font-size-18">File Category List</h4>
+            <div>
+              <a
+                href="{% url 'dataroom:add_category' %}"
+                class="btn btn-primary"
+              >
+                <i class="bi bi-plus-circle"></i> Add Category
+              </a>
+            </div>
           </div>
         </div>
       </div>
