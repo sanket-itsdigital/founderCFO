@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from accounts.models import Company
 from backend.models import BaseModel
@@ -155,6 +156,20 @@ class Invoice(BaseModel):
 
     def __str__(self):
         return f"{self.invoice_number} - {self.customer_name}"
+
+    @property
+    def is_overdue(self):
+        """Check if the invoice is overdue"""
+        if not self.due_date:
+            return False
+        today = timezone.now().date()
+        is_past_due = self.due_date < today
+        # Invoice is overdue if past due date and not paid, cancelled, or bad debt
+        return is_past_due and self.status not in [
+            InvoicesStatusChoices.PAID,
+            InvoicesStatusChoices.CANCELLED,
+            InvoicesStatusChoices.BAD_DEBT,
+        ]
 
     def save(self, *args, **kwargs):
         """Auto-calculate amounts if not provided"""
