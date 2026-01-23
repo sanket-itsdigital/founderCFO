@@ -196,7 +196,8 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
 
-# LOGIN_URL = "/admin/login/"
+LOGIN_URL = "/api/account/login-admin/"
+LOGIN_REDIRECT_URL = "/"
 
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
