@@ -271,3 +271,56 @@ def select_categories(request):
 @login_required
 def user_profile(request):
     return render(request, "profile.html", {"user": request.user})
+
+
+@login_required
+def list_users(request):
+    """List all users for admin"""
+    from django.core.paginator import Paginator
+    from accounts.utils import get_user_company
+    
+    users = User.objects.all().order_by("-created_at")
+    
+    # Add contact_phone and company_name property to each user for template compatibility
+    for user in users:
+        user.contact_phone = user.mobile_number or ""
+        user.gender = ""  # Gender field not in model, set empty
+        
+        # Get company name - check owned companies first, then team memberships
+        company = get_user_company(user)
+        user.company_name = company.name if company else "-"
+    
+    # Pagination
+    paginator = Paginator(users, 25)  # 25 users per page
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        "data": page_obj,
+        "page_obj": page_obj,
+    }
+    
+    return render(request, "custom_user_list.html", context)
+
+
+@login_required
+def list_company_subscriptions(request):
+    """List all company subscriptions for admin"""
+    from django.core.paginator import Paginator
+    from subscriptions.models import CompanySubscription
+    
+    subscriptions = CompanySubscription.objects.select_related(
+        'company', 'plan', 'purchased_by'
+    ).all().order_by("-created_at")
+    
+    # Pagination
+    paginator = Paginator(subscriptions, 25)  # 25 subscriptions per page
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        "data": page_obj,
+        "page_obj": page_obj,
+    }
+    
+    return render(request, "company_subscription_list.html", context)

@@ -110,6 +110,7 @@
                                                 <th>Name</th>
                                                 <th>Mobile</th>
                                                 <th>Email</th>
+                                                <th>Company</th>
                                                 <th>Gender</th>
                                                 <th>Active</th>
                                                 <th>Action</th>
@@ -125,6 +126,7 @@
                                                     <td>{{ i.full_name }}</td>
                                                     <td>{{ i.contact_phone }}</td>
                                                     <td>{{ i.email }}</td>
+                                                    <td>{{ i.company_name }}</td>
                                                     <td>{{ i.gender }}</td>
                                                     <td>{{i.is_active}}
                                                   
@@ -132,11 +134,10 @@
 
                                                     
                                                    <td>
-                                                        <!-- remove Button -->
-                                                        <a href="{% url 'update_customer_user' i.id %}" ><i class="bi bi-pencil-square text-primary action-icons edit"  title="Edit"></i>  </a>
-                                                        <a href="{% url 'delete_customer_user' i.id %}" > <i class="bi bi-trash text-danger action-icons delete" title="Delete"></i> </a>
-
-
+                                                        {# Action buttons - uncomment when update/delete views are created #}
+                                                        {# <a href="{% url 'update_customer_user' i.id %}" ><i class="bi bi-pencil-square text-primary action-icons edit"  title="Edit"></i>  </a> #}
+                                                        {# <a href="{% url 'delete_customer_user' i.id %}" > <i class="bi bi-trash text-danger action-icons delete" title="Delete"></i> </a> #}
+                                                        <span class="text-muted">-</span>
                                                     </td>
                                                 </tr>
                                                 {% endfor %}
